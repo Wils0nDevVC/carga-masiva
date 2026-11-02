@@ -107,7 +107,7 @@ Se revisan los usos de las siete entidades y sus mapeos en `ms-control`; se reti
 2. **Given** una entidad o mapeo sin uso en Control y sin función de Control que lo requiera, **When** se aplica la limpieza, **Then** se retira junto con su configuración, y el resto compila sin referencias rotas.
 3. **Given** una entidad conservada, **When** se revisa su mapeo, **Then** corresponde a la tabla real creada por el script (columnas, tipos, nulabilidad y relaciones), sin redefinir el esquema: sin nombres explícitos de restricciones creados para generar el DDL, sin datos base sembrados desde el modelo, sin la convención de índices de claves foráneas retirada ni anotaciones añadidas solo para replicar el DDL.
 4. **Given** el trabajo existente de Control (fundación, repositorio y Unit of Work mínimos, `AppDbContext`, `/health`), **When** se compila y se arranca, **Then** sigue funcionando sin cambios de comportamiento.
-5. **Given** una duda sobre si Control necesita una entidad, **When** no hay evidencia en la constitución, la Feature 001 o el README, **Then** se conserva y se registra como pendiente para la feature funcional correspondiente; no se retira por suposición.
+5. **Given** una entidad sin referencias ni función de Control implementada o aprobada ahora, **When** se revisa, **Then** se retira; no se conserva ni se agrega por una necesidad futura supuesta, y se regenera con la ingeniería inversa cuando una feature funcional la necesite. *(Precisado en el plan, D-04: sustituye el criterio inicial de conservar ante la duda.)*
 
 ---
 
@@ -191,7 +191,7 @@ La validación del runner se hace sobre una base nueva y vacía, sin mezclar su 
 - **FR-019**: `GET /health` de `ms-control` MUST indicar que el host arrancó, con el mismo comportamiento que en los demás servicios; la disponibilidad del esquema la garantiza el orden de Compose. [Decisión derivada de FR-011]
 - **FR-020**: La refactorización MUST conservar la fundación de la Feature 002: estructura de capas, referencias, `Response<T>`, manejo global de errores, FluentValidation y MediatR, repositorio y Unit of Work mínimos, Serilog y volúmenes de logs, Dockerfile y cadena de conexión por variable de entorno. [Decisión] [Feature 002]
 - **FR-021**: Se MUST revisar el uso de cada entidad y mapeo de `ms-control`; MUST retirarse únicamente lo creado para administrar el esquema global (modelo completo, datos base sembrados desde el modelo, nombres de restricciones e índices, convenciones y anotaciones añadidas solo para replicar el DDL) y MUST conservarse lo necesario para las funciones de Control. [Decisión]
-- **FR-022**: La revisión MUST dejar un resultado trazable por entidad (uso real, función de Control que la requiere o su ausencia, conservar o retirar). Ante falta de evidencia, MUST conservarse y registrarse como pendiente; MUST NOT retirarse por suposición. [Decisión]
+- **FR-022**: La revisión MUST dejar un resultado trazable por entidad (uso real, función de Control que la requiere o su ausencia, conservar o retirar). La evidencia para conservar una entidad es una referencia actual o una función de Control implementada o aprobada ahora; MUST NOT conservarse ni agregarse entidades por necesidades futuras supuestas. [Decisión: plan]
 - **FR-023**: Las entidades conservadas MUST corresponder a las tablas reales creadas por el runner; MUST NOT redefinir el esquema desde el modelo ni sembrar datos base. [Decisión] [Constitución §6]
 - **FR-024**: MUST NOT eliminarse bases, datos ni volúmenes existentes al retirar migraciones; la limpieza afecta solo al código y a la configuración de Control. [Decisión]
 
@@ -240,8 +240,8 @@ La validación del runner se hace sobre una base nueva y vacía, sin mezclar su 
 
 - **Reglas de negocio y esquema**: son los de la Feature 001 y `referencias/V001`/`V002`; los scripts de `database/scripts/` ya coinciden con ellos (idénticos en el repositorio) y el runner existente es el punto de partida; su adaptación y validación se deciden en el plan. [Observado] [Decisión]
 - **Registro de scripts**: se conserva `SchemaMigraciones` como registro del runner. [Observado]
-- **Nombre de la base operativa**: la elección entre las existentes (`CargaMasiva`, `CargaMasivaDb`) o una nueva para el uso diario queda para el plan; la validación usa una base nueva y vacía. No se elimina ni se renombra ninguna base. [Decisión]
-- **Entidades de Control**: la constitución y el README asignan a Control la recepción de archivos y el seguimiento de cargas (consultas de cargas e incidencias por rol). La revisión de FR-021/FR-022 parte de esa base; sin código funcional que las use hoy, la clasificación de cada una se confirma en el plan con evidencia, y lo dudoso se conserva. [Constitución §2] [Observado]
+- **Nombre de la base operativa**: una base nueva y vacía (`CargaMasivaApp`, plan D-02) sirve al runner y a los cuatro servicios; `CargaMasiva` y `CargaMasivaDb` se conservan sin cambios. No se elimina ni se renombra ninguna base existente. [Decisión]
+- **Entidades de Control**: la constitución y el README asignan a Control la recepción de archivos y el seguimiento de cargas (consultas de cargas e incidencias por rol). Sin código funcional que las use hoy, el plan (D-04) comprueba que ninguna entidad tiene referencias y las retira todas, sin conservar entidades por necesidades futuras supuestas. [Constitución §2] [Observado] [Decisión: plan]
 - **Servicios sin funciones**: `ms-autenticacion`, `ms-carga-masiva` y `ms-notificaciones` mantienen su `AppDbContext` sin entidades hasta su feature funcional. [Feature 002 FR-032]
 - **Herramientas de ingeniería inversa**: `dotnet ef dbcontext scaffold` requiere el paquete de diseño y la herramienta ya presentes en Control; el plan define dónde se ejecuta para el resto de servicios sin añadir nada nuevo. [Observado]
 - **Instancia única del runner**: una ejecución por `compose up`; la protección contra ejecuciones simultáneas ya existe y se verifica. [Observado]
@@ -250,8 +250,8 @@ La validación del runner se hace sobre una base nueva y vacía, sin mezclar su 
 
 ## Asuntos pendientes (no son requisitos aprobados)
 
-- **Base operativa**: cuál de las bases existentes o una nueva usarán los microservicios en operación normal; las dos existentes tienen historiales distintos (`SchemaMigraciones` en `CargaMasiva`, `__EFMigrationsHistory` en `CargaMasivaDb`). Se resuelve en el plan sin tocar ni mezclar ambas.
-- **Clasificación de entidades de Control**: la lista final de las entidades que se conservan o retiran requiere la revisión de uso (FR-022) en el plan; esta spec no la fija.
+- ~~**Base operativa**~~: resuelto en el plan (D-02): base nueva y vacía `CargaMasivaApp`; las dos existentes se conservan.
+- ~~**Clasificación de entidades de Control**~~: resuelto en el plan (D-04): las siete se retiran (0 referencias; sin función actual de Control).
 - **Verificación operativa de Docker y SQL Server**: la imagen es amd64 y corre emulada en Apple silicon, sin soporte oficial de Microsoft; no se declara Docker funcional hasta validar el flujo real. La validación vale solo para este equipo.
 - **Documentos de las features 001 y 002**: quedan afectados (estrategia de migraciones EF, orden de Compose, `/health` de Control, guarda de base heredada, `quickstart`); se actualizan en una etapa posterior, no aquí.
 - **Constitución**: la lista de Pendientes conserva, sin resolver, los asuntos ajenos a esta feature (serialización de `Response<T>`, retención de logs, parámetros de Polly, entre otros). [Constitución Pendientes]
