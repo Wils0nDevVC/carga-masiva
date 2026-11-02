@@ -4,11 +4,11 @@
 
 **Created**: 2026-11-02
 
-**Status**: Draft (v2: decisiones aprobadas incorporadas)
+**Status**: Draft (v4: decisiones de precisión, fallo terminal, duplicados, espacios y hash incorporadas)
 
 **Input**: User description: "Feature: persistencia y reglas de integridad para la carga masiva" (prompt `/speckit-specify` del usuario) y decisiones aprobadas posteriores sobre estados, fallos, reintentos, identidad y valores inválidos.
 
-**Procedencia**: `[README §n]` = sección de `referencias/README.md`; `[Constitución §n]` = `.specify/memory/constitution.md` v1.1.1; `[Decisión]` = decisión explícita del usuario (no proviene del README). Lo no resuelto figura como pendiente y no como requisito.
+**Procedencia**: `[README §n]` = sección de `referencias/README.md`; `[Constitución §n]` = `.specify/memory/constitution.md` v1.3.0; `[Decisión]` = decisión explícita del usuario (no proviene del README). Lo no resuelto figura como pendiente y no como requisito.
 
 ## Contexto
 
@@ -67,7 +67,12 @@ Tras superar la validación de periodo, cada fila elegible se persiste como prod
 2. **Given** el mismo CodigoProducto en varias filas elegibles del archivo, **When** se procesa, **Then** se acepta la primera según el orden original del Excel y las posteriores no actualizan el precio.
 3. **Given** el mismo CodigoProducto en periodos distintos del mismo archivo, **When** se procesa, **Then** rige la unicidad global: solo se conserva la primera fila elegible.
 4. **Given** un producto existente, **When** llega una fila con el mismo código y otro precio, **Then** el precio del producto existente no cambia.
-5. **Given** dos procesamientos concurrentes con el mismo CodigoProducto, **When** terminan, **Then** existe un único producto con ese código.
+5. **Given** dos procesamientos concurrentes con el mismo CodigoProducto, **When** terminan, **Then** existe un único producto con ese código y la fila perdedora se reporta como Existente; una colisión de una fila nunca rechaza el grupo completo.
+6. **Given** el código X en la fila 3 del periodo B y en la fila 5 del periodo A, con filas del periodo A anteriores a la 3 en el archivo, **When** se procesa, **Then** gana la fila 3 (primera en el orden original del Excel) aunque su periodo no sea el primero en procesarse.
+7. **Given** los códigos "p0117" y " P0117 " (con espacios externos), **When** se comparan, **Then** representan el mismo código; el segundo se reporta Existente. Los espacios internos no se eliminan.
+8. **Given** una colisión de unicidad que se repite tras los reintentos limitados, **When** se agotan, **Then** el periodo se registra como fallo técnico con su incidencia y libera su reserva (ver US5).
+9. **Given** el código X ganador en la fila 3 del periodo B y duplicado en la fila 5 del periodo A, **When** el periodo B se revierte o no llega a procesarse, **Then** la fila 5 no se registra como Existente (no hay producto confirmado): se reporta como no procesada y una nueva carga la evalúa de nuevo contra los datos confirmados.
+10. **Given** un precio que no cabe exactamente en DECIMAL(18,2) o un texto que supera la longitud definida, **When** se procesa la fila, **Then** se omite con su motivo, sin redondear ni truncar.
 
 ---
 
@@ -88,6 +93,8 @@ Se omiten las filas totalmente vacías; se aplican valores por defecto solo a da
 5. **Given** una fila con Precio no numérico, **When** se procesa, **Then** se omite y se registra el motivo; no se le aplica el valor 0.
 6. **Given** una fila con Periodo que no cumple AAAA-MM (p. ej. "2025-13" o "25-01"), **When** se procesa, **Then** se omite y se registra el motivo.
 7. **Given** una fila con Periodo "2025-12", **When** se procesa, **Then** el periodo es válido.
+8. **Given** una fila cuyo CodigoProducto contiene solo espacios, **When** se procesa, **Then** se trata como ausente: la fila se omite y se registra el motivo.
+9. **Given** una fila con CodigoProducto " ab c ", **When** se persiste, **Then** el código es "ab c" (espacios externos eliminados, interno conservado).
 
 ---
 
@@ -101,12 +108,18 @@ Cada grupo de periodo se persiste de forma transaccional: sus productos aceptado
 
 **Acceptance Scenarios**:
 
-1. **Given** un archivo con los periodos P1, P2 y P3 donde P1 se completó y P2 sufre un fallo técnico antes de confirmar, **When** se agotan los reintentos permitidos, **Then** P1 permanece confirmado, P2 no deja productos ni incidencias de negocio confirmados, queda una incidencia técnica persistente y la carga termina Fallido con su motivo.
+1. **Given** un archivo con los periodos P1, P2 y P3 donde P1 se completó y P2 sufre un fallo técnico antes de confirmar, **When** se agotan los reintentos permitidos, **Then** P1 permanece confirmado, P2 no deja productos ni incidencias de negocio confirmados, queda una incidencia técnica persistente, P3 se registra como “No procesado por interrupción de la carga” con su reserva liberada y la carga termina Fallido con su motivo.
 2. **Given** P1 completado en un archivo que terminó Fallido, **When** otra carga intenta P1, **Then** P1 se rechaza porque un periodo completado sigue impidiendo nuevas cargas.
 3. **Given** P2 fallido y revertido, sin productos confirmados, y finalizada la ejecución anterior, **When** una nueva carga incluye P2, **Then** P2 puede procesarse.
-4. **Given** un periodo no completado tras un fallo, **When** pasa el tiempo sin nueva carga, **Then** ese periodo no queda bloqueado indefinidamente.
+4. **Given** un periodo no completado tras un fallo terminal, **When** la carga queda Fallido, **Then** su reserva se libera y el periodo no queda bloqueado indefinidamente.
 5. **Given** un mensaje de procesamiento reentregado o reintentado, **When** se procesa de nuevo, **Then** no se duplican productos, no se reprocesan periodos completados y no se reporta como Existente un producto ya confirmado por esa misma carga.
 6. **Given** una carga cuyo procesamiento falla por error técnico tras agotar los reintentos, **When** se consulta, **Then** queda Fallido con su motivo; una omisión o rechazo de negocio, en cambio, nunca produce Fallido.
+7. **Given** cargas Pendiente esperando su mensaje, **When** el servicio de carga masiva se reinicia, **Then** siguen Pendiente y no se marcan Fallido; el reinicio no demuestra abandono.
+8. **Given** una carga En proceso interrumpida por la caída del proceso, con P1 completado y P2 sin confirmar, **When** el servicio se recupera antes de consumir nuevos mensajes, **Then** conserva P1, reanuda solo los periodos no completados sin duplicar productos ni incidencias, y la carga continúa su recorrido.
+9. **Given** una recuperación interrumpida por otra caída, **When** se repite, **Then** el resultado final es el mismo, sin duplicados; las caídas repetidas no producen Fallido por sí solas hasta agotar los intentos permitidos para procesar la carga.
+10. **Given** dos instancias que intentan procesar a la vez, **When** ambas arrancan, **Then** solo una procesa y recupera cargas; la otra no procesa ni recupera.
+11. **Given** el mensaje de una carga que ya se recuperó, **When** RabbitMQ lo reentrega, **Then** se descarta sin reprocesar ni cambiar su estado.
+12. **Given** un periodo rechazado por validación de negocio con otros periodos pendientes, **When** se procesa el archivo, **Then** los demás periodos continúan; solo un fallo técnico terminal detiene el archivo.
 
 ---
 
@@ -141,6 +154,8 @@ Se conserva evidencia de la finalización del procesamiento y de la notificació
 2. **Given** una carga Finalizado, **When** el envío del correo termina con éxito, **Then** queda Notificado con la evidencia de la notificación.
 3. **Given** una carga Finalizado, **When** falla únicamente el envío del correo, **Then** conserva Finalizado, se registra la incidencia y la notificación puede reintentarse sin reprocesar el archivo.
 4. **Given** una notificación no completada, **When** se consulta la carga, **Then** no figura como Notificado.
+5. **Given** una carga en Cargado cuyo paso a Finalizado falla, **When** se recupera, **Then** conserva Cargado y se completa la finalización sin reprocesar productos confirmados.
+6. **Given** una carga Notificado o Fallido, **When** se intenta cambiar su estado, **Then** no cambia (estados terminales).
 
 ---
 
@@ -171,6 +186,10 @@ La identidad es propia y persistida; existen los roles Administrador y Operador,
 - Reentrega de un mensaje ya completado: no duplica productos, incidencias ni historial.
 - Fallo técnico del procesamiento tras la confirmación de algunos periodos: la carga queda Fallido, pero los periodos completados se conservan.
 - Fallo de correo: la carga permanece Finalizado; Fallido no aplica a la notificación.
+- Precio que no puede representarse exactamente en DECIMAL(18,2), o texto que supera la longitud definida en el modelo: la fila se omite y se registra el motivo; no se redondea ni trunca en silencio. [Decisión]
+- Fallo terminal de un periodo con otros periodos aún sin procesar: se detiene el archivo, la carga queda Fallido, se conservan los periodos completados y los pendientes se registran como “No procesado por interrupción de la carga” con sus reservas liberadas. Un periodo rechazado por validación de negocio no detiene los demás. [Decisión]
+- Duplicado cuya fila ganadora no llegó a persistirse (periodo revertido o no procesado): no se registra Existente; la fila se reporta como no procesada y una nueva carga la evalúa de nuevo contra los datos confirmados. [Decisión]
+- Archivo ilegible por formato o contenido inválido: incidencia de entrada, sin reintentos técnicos; una falla de descarga o almacenamiento es técnica. Su tratamiento operativo se define en la feature de procesamiento. [Decisión]
 - Nuevo archivo con P2 mientras la ejecución anterior que lo revirtió sigue en curso: el periodo sigue ocupado hasta terminar esa ejecución (el mecanismo lo define el plan).
 
 ## Requirements *(mandatory)*
@@ -182,14 +201,14 @@ La identidad es propia y persistida; existen los roles Administrador y Operador,
 - **FR-001**: El sistema MUST conservar usuarios, roles y su asociación en una identidad propia persistida, sin proveedores externos de identidad. [Decisión]
 - **FR-002**: Los roles MUST ser Administrador y Operador. El Administrador carga archivos y consulta todas las cargas y sus incidencias; el Operador carga archivos y consulta solo sus propias cargas e incidencias. [Decisión]
 - **FR-003**: El sistema MUST NOT incorporar un motor genérico de permisos. [Decisión]
-- **FR-004**: Las contraseñas MUST almacenarse con un hash apropiado para contraseñas, nunca en texto plano ni con cifrado reversible; el mecanismo lo define el plan. [Decisión]
+- **FR-004**: Las contraseñas MUST almacenarse con un hash apropiado para contraseñas, nunca en texto plano ni con cifrado reversible. El hash lo genera ms-autenticacion con `PasswordHasher` de ASP.NET Core Identity, sin implementar PBKDF2 manualmente; esta feature solo define su almacenamiento. [Decisión]
 - **FR-005**: MUST existir un usuario inicial por rol para la demostración, con credenciales suministradas por configuración externa y sin contraseñas en scripts versionados. [Decisión]
 
 **Carga y archivo**
 
 - **FR-006**: El sistema MUST registrar cada carga con `idCarga`, nombre del archivo, usuario responsable, fecha de recepción y estado actual. [README §3, §5] [Decisión]
 - **FR-007**: El sistema MUST conservar la referencia necesaria para localizar el archivo en el almacenamiento y MUST NOT guardar el contenido binario del Excel. [Decisión]
-- **FR-008**: El sistema MUST asociar a la carga los periodos del archivo, conservando por cada uno su resultado (admitido/completado, rechazado, bloqueado o fallido). Ese resultado MUST distinguirse del estado de la carga y MUST NOT convertirse automáticamente en estado de la carga. [Decisión] [Constitución §8]
+- **FR-008**: El sistema MUST asociar a la carga los periodos del archivo, conservando por cada uno su resultado (admitido/completado, rechazado, bloqueado, fallido o no procesado). Ese resultado MUST distinguirse del estado de la carga y MUST NOT convertirse automáticamente en estado de la carga. [Decisión] [Constitución §8]
 
 **Reglas por periodo**
 
@@ -219,16 +238,16 @@ La identidad es propia y persistida; existen los roles Administrador y Operador,
 
 - **FR-024**: Las filas completamente vacías MUST omitirse sin generar producto. [README §3]
 - **FR-025**: Si falta Periodo o CodigoProducto, la fila MUST omitirse y registrarse el motivo. [Constitución §7]
-- **FR-026**: Si falta NombreProducto se MUST usar "Producto " + CodigoProducto; si falta Precio, 0. [README §3] [Constitución §7]
+- **FR-026**: Si falta NombreProducto se MUST usar "Producto " + CodigoProducto (ya limpio de espacios externos); si falta Precio, 0. [README §3] [Constitución §7]
 - **FR-027**: Un Precio no numérico o un Periodo inválido MUST omitir la fila y registrar el motivo. Un Periodo válido tiene formato AAAA-MM, con año de cuatro dígitos y mes entre 01 y 12. No se aplican valores por defecto a datos inválidos. [Decisión]
-- **FR-028**: La especificación MUST NOT imponer restricciones sobre precios negativos, patrones de CodigoProducto, longitudes o límites deducidos del Excel de ejemplo. [Decisión] [Constitución §7]
+- **FR-028**: No se imponen restricciones sobre precios negativos ni patrones de CodigoProducto, y ningún límite se deduce del Excel de ejemplo. Las longitudes físicas de los textos son propuestas del plan sujetas a aprobación (ver FR-047). [Decisión] [Constitución §7]
 
 **Estados, auditoría y notificación**
 
-- **FR-029**: La carga MUST usar únicamente los estados Pendiente, En proceso, Cargado, Finalizado, Notificado y Fallido (este último es decisión del usuario, no del README), con el recorrido satisfactorio Pendiente → En proceso → Cargado → Finalizado → Notificado. [README §2] [Decisión]
+- **FR-029**: La carga MUST usar únicamente los estados Pendiente, En proceso, Cargado, Finalizado, Notificado y Fallido (este último es decisión del usuario, no del README), con el recorrido satisfactorio Pendiente → En proceso → Cargado → Finalizado → Notificado. Transiciones permitidas: ese recorrido y, ante un fallo técnico terminal, Pendiente → Fallido y En proceso → Fallido. Notificado y Fallido son terminales. [README §2] [Decisión]
 - **FR-030**: Significado de los estados: Pendiente = archivo registrado, esperando procesamiento; En proceso = lectura, validación y procesamiento del contenido; Cargado = productos aceptados e incidencias persistidos, resueltos todos los grupos; Finalizado = procesamiento completo y resultado preparado para notificar; Notificado = correo enviado satisfactoriamente; Fallido = procesamiento interrumpido por error técnico tras agotar los reintentos permitidos. [Decisión]
-- **FR-031**: Una omisión o rechazo por reglas de negocio MUST NOT producir Fallido. Al agotarse los reintentos de procesamiento, el sistema MUST registrar Fallido y su motivo. [Decisión]
-- **FR-032**: Los reintentos técnicos MUST ser limitados; cantidad, intervalos, errores reintentables y operaciones protegidas los define el plan. No se añade interfaz ni endpoint de reintentos. [Decisión]
+- **FR-031**: Una omisión o rechazo por reglas de negocio MUST NOT producir Fallido. Un error transitorio recuperable MUST NOT cambiar el estado; un reinicio o caída del proceso MUST NOT marcar Fallido por sí solo. Al agotarse los reintentos de procesamiento, el sistema MUST registrar Fallido y su motivo. [Decisión]
+- **FR-032**: Los reintentos técnicos MUST ser limitados; cantidad, intervalos, errores reintentables y operaciones protegidas se definen en las features de Control, Carga Masiva y Notificaciones. No se añade interfaz ni endpoint de reintentos. [Decisión]
 - **FR-033**: Los fallidos, existentes y demás incidencias MUST persistirse vinculados a la carga, con motivo e información disponible de periodo y fila o producto. [README §3] [Constitución §8]
 - **FR-034**: Debe poder distinguirse una incidencia de grupo, una de fila y una técnica entre sí y respecto del estado de la carga. [Decisión]
 - **FR-035**: El sistema MUST conservar el historial de cambios de estado de la carga. [Constitución §8]
@@ -236,6 +255,16 @@ La identidad es propia y persistida; existen los roles Administrador y Operador,
 - **FR-037**: Notificado MUST registrarse solo tras el envío exitoso, y la notificación corresponde a la carga, no a cada fila. Si falla únicamente el correo, la carga conserva Finalizado, se registra la incidencia y la notificación se reintenta sin reprocesar el archivo. [README §3] [Decisión]
 - **FR-038**: La información de auditoría MUST ser persistente y no depender de archivos de log. [Constitución §10]
 - **FR-039**: La especificación MUST NOT imponer una o varias tablas para auditoría y trazabilidad; el plan decide el modelo mínimo. [Constitución §8]
+- **FR-040**: Cada transición de estado aplicada MUST conservarse en el historial; repetir una transición ya aplicada MUST NOT duplicarlo. [Decisión]
+- **FR-041**: Si falla el paso Cargado → Finalizado, la carga MUST conservar Cargado y la finalización MUST recuperarse sin reprocesar productos confirmados. [Decisión]
+- **FR-042**: Debe existir un único procesador activo de cargas, con exclusividad garantizada por un mecanismo (no solo por configurar una réplica); procesa mensajes y grupos de periodo de forma secuencial. [Decisión]
+- **FR-043**: Las ejecuciones interrumpidas MUST recuperarse antes de consumir nuevos mensajes, conservando los periodos completados; una carga Pendiente que espera su mensaje no se considera interrumpida. [Decisión]
+- **FR-044**: CodigoProducto se compara sin distinguir mayúsculas, tras eliminar los blancos iniciales y finales con `Trim()` de .NET (se conservan los internos) y antes de comprobar longitud y unicidad, sin introducir otras equivalencias (p. ej. acentos); un código vacío tras la limpieza se trata como ausente; no se eliminan espacios internos ni se aplican otras transformaciones. El criterio MUST ser el mismo en la validación de aplicación y en la restricción de la base de datos. [Decisión]
+- **FR-045**: El orden original del Excel MUST determinar qué fila gana entre duplicados elegibles aunque estén en periodos distintos e intercalados, sin incumplir la atomicidad por periodo. [Decisión]
+- **FR-046**: Una colisión de unicidad de CodigoProducto MUST resolverse como fila Existente tras reevaluar, sin rechazar el grupo; si persiste tras los reintentos limitados, MUST registrarse como fallo técnico del periodo con su incidencia y liberar su reserva. [Decisión]
+- **FR-047**: Precio se almacena como DECIMAL(18,2). Si el precio no puede representarse exactamente en DECIMAL(18,2), o un texto supera la longitud definida en el modelo, la fila MUST omitirse y registrarse el motivo; no se aceptan redondeos ni truncamientos silenciosos. [Decisión]
+- **FR-048**: Ante un fallo técnico terminal de un periodo, el sistema MUST detener el procesamiento del archivo y dejar la carga Fallido, conservar los periodos completados, registrar los periodos pendientes como “No procesado por interrupción de la carga” (sin afirmar que fallaron) y liberar sus reservas. [Decisión]
+- **FR-049**: Una fila MUST registrarse como Existente solo si el producto que la origina está confirmado; si el periodo de la fila ganadora se revierte o no llega a procesarse, sus resultados provisionales se revierten y las filas afectadas se reportan como no procesadas. Una nueva carga las evalúa de nuevo contra los datos confirmados. [Decisión]
 
 ### Key Entities *(include if feature involves data)*
 
@@ -268,13 +297,12 @@ Descripción conceptual; no implica una tabla por concepto ni fija columnas, tip
 - Las restricciones técnicas acordadas (SQL Server, EF Core y LINQ, scripts SQL versionados, Polly y RabbitMQ) se aplican en el plan, no aquí. [Constitución §6, §9]
 - Los escenarios se verifican manualmente; no se crean pruebas automatizadas. [Constitución §11]
 - El Excel de ejemplo solo ilustra el formato y la presencia de varios periodos; no define límites ni validaciones.
+- Los parámetros de reintento (cantidad, intervalos) se fijan en las features de Control, Carga Masiva y Notificaciones; esta feature solo define límites transaccionales, operaciones repetibles y resultados persistentes.
 - Fuera de alcance: login, JWT, endpoints, administración de usuarios, consumidores de colas, lectura del Excel, SeaweedFS, envío de correo y React.
 
 ## Asuntos pendientes (no son requisitos aprobados)
 
-- Cantidad, intervalos, errores reintentables y operaciones protegidas de los reintentos: plan.
-- Mecanismo de hash de contraseñas y de protección ante concurrencia: plan.
-- Cómo se determina que "terminó la ejecución anterior" de un periodo revertido (sin infraestructura adicional innecesaria): plan.
-- Valor exacto de configuración de las credenciales iniciales (nombres de usuario/correos de demostración): plan o configuración.
-- Modelo físico, índices, procedimientos almacenados y mecanismo de ejecución de scripts: plan.
-- Límites de tamaño de archivo y contenido exacto del correo (no condicionan esta feature).
+- Tratamiento operativo de un archivo ilegible (formato o contenido inválido: incidencia de entrada sin reintentos técnicos; descarga o almacenamiento: técnica): se define en la feature de procesamiento.
+- Recuperación de notificaciones no publicadas: se resuelve en la feature del servicio que publica el mensaje; no se implementa en `database/`.
+- Verificación operativa de Docker y SQL Server en el equipo donde se ejecutará (ver `research.md` R-11); no bloquea la creación de la base.
+- Modelo físico, índices, procedimientos y scripts: ver `plan.md` y `data-model.md`.

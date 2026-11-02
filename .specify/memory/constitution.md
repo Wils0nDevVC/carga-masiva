@@ -1,13 +1,18 @@
 <!--
 Sync Impact Report
-- Versión: 1.1.0 → 1.1.1 (PATCH: se fijan los nombres de directorios; sin cambio de reglas)
-- Principios modificados: §2 (directorios confirmados y su contenido); "Pendientes" (retirado
-  el pendiente de nombres de directorios)
-- Cambios de la versión 1.1.0 (referencia): estado Fallido, atomicidad por periodo, identidad y
-  roles, valores inválidos.
-- Principios modificados: §6 (identidad propia, roles, hash, usuarios iniciales), §7 (periodo
-  válido AAAA-MM, valores inválidos, atomicidad por periodo, disponibilidad del periodo),
-  §8 (estado Fallido, significado de estados, fallo de correo), §9 (idempotencia de reintentos)
+- Versión: 1.2.0 → 1.3.0 (MINOR: tratamiento de precisión y longitudes, fallo terminal de un
+  periodo, duplicados con ganador revertido, Trim de CodigoProducto, hash en autenticación)
+- Cambios 1.2.0 (referencia): normalización de CodigoProducto, matriz de transiciones,
+  consumidor único con recuperación, responsabilidades de Polly y de usuarios iniciales.
+- Principios modificados en 1.3.0: §6 (hash con PasswordHasher de ASP.NET Core Identity), §7
+  (omisión por precisión/longitud, fallo terminal, duplicados), Pendientes (resueltos retirados).
+- Principios modificados en 1.2.0: §6 (usuarios iniciales: responsable y repetibilidad), §7
+  (CodigoProducto sin distinguir mayúsculas y sin espacios externos; precisión del precio y
+  longitudes como pendientes de aprobación), §8 (matriz de transiciones, recuperación de
+  Cargado → Finalizado), §9 (consumidor único, procesamiento secuencial, recuperación antes de
+  consumir; parámetros de Polly por feature)
+- Cambios de versiones anteriores (referencia): 1.1.1 nombres de directorios; 1.1.0 estado
+  Fallido, atomicidad por periodo, identidad y roles, valores inválidos.
 - Secciones añadidas: ninguna; "Pendientes y no autorizado" actualizada (resueltos retirados)
 - Secciones eliminadas: ninguna
 - Diferidos: fecha de ratificación (pendiente de aprobación del usuario).
@@ -96,9 +101,12 @@ Sync Impact Report
 - Roles: Administrador (carga archivos; consulta todas las cargas y sus incidencias) y Operador
   (carga archivos; consulta solo sus propias cargas e incidencias). [Decisión]
 - Las contraseñas se almacenan con hash apropiado para contraseñas, nunca en texto plano ni con
-  cifrado reversible; el mecanismo lo define el plan. [Decisión]
+  cifrado reversible. El hash lo genera ms-autenticacion con `PasswordHasher` de ASP.NET Core
+  Identity, sin implementar PBKDF2 manualmente; la base solo define su almacenamiento. [Decisión]
 - Un usuario inicial por rol para la demostración, con credenciales suministradas por
-  configuración externa; MUST NOT haber contraseñas en scripts versionados. [Decisión]
+  configuración externa; MUST NOT haber contraseñas en scripts versionados. Su creación al
+  arrancar corresponde a ms-autenticacion: repetible sin duplicar usuarios y sin sobrescribir
+  contraseñas existentes. [Decisión]
 - En la etapa de constitución MUST NOT crearse tablas, columnas, índices ni procedimientos
   definitivos. [Decisión]
 
@@ -114,6 +122,12 @@ Sync Impact Report
   incluso en otro periodo, la fila se omite y se reporta como Existente. [README §3] [Decisión]
 - MUST NOT usarse Periodo + CodigoProducto como criterio de duplicidad ni llave única compuesta.
   [Decisión]
+- CodigoProducto se compara sin distinguir mayúsculas de minúsculas (p0117 = P0117), tras eliminar
+  los espacios al inicio y al final (`Trim()` de .NET); un código vacío tras esa limpieza se trata
+  como ausente. La normalización precede a la comprobación de longitud y de unicidad. No se
+  eliminan espacios internos ni se aplican otras transformaciones (tampoco equivalencias de
+  acentos). El mismo criterio rige en
+  las validaciones de aplicación y en la restricción de la base de datos. [Decisión]
 - Entre duplicados elegibles del archivo se conserva la primera fila aceptada en el orden
   original; las posteriores no actualizan el precio. [Decisión]
 - Filas completamente vacías se omiten. [README §3]
@@ -122,10 +136,21 @@ Sync Impact Report
   [README §3] [Decisión]
 - Ausente ≠ inválido: Precio no numérico o Periodo inválido omiten la fila y registran el motivo;
   no se aplican valores por defecto para ocultar datos inválidos. Periodo válido: AAAA-MM (año de
-  cuatro dígitos, mes 01–12). No se inventan restricciones sobre precios negativos, patrones de
-  CodigoProducto ni longitudes. [Decisión]
+  cuatro dígitos, mes 01–12). No se inventan restricciones sobre precios negativos ni patrones de
+  CodigoProducto. Precio se almacena como DECIMAL(18,2) [Decisión]. Si el precio no puede
+  representarse exactamente en DECIMAL(18,2), o un texto supera la longitud definida en el
+  modelo, la fila se omite y se registra el motivo; nunca se redondea ni se trunca en silencio.
+  [Decisión]
 - Ante una validación de periodo fallida termina el procesamiento de ese grupo, no el de los
   demás. [README §3] [Decisión]
+- Ante un fallo técnico terminal de un periodo se detiene el procesamiento del archivo y la carga
+  queda Fallido: se conservan los periodos completados, los pendientes se registran como “No
+  procesado por interrupción de la carga” (sin afirmar que fallaron) y se liberan sus reservas.
+  Esto no altera el rechazo de negocio, que no detiene los demás periodos. [Decisión]
+- Existente requiere un producto confirmado: no se registra si la fila original no llegó a
+  persistirse. Si se revierte un periodo, sus resultados provisionales se revierten; las filas no
+  procesadas se reportan como no procesadas y en una nueva carga se evalúan de nuevo contra los
+  datos confirmados. [Decisión]
 - Cada grupo de periodo se persiste de forma transaccional: productos aceptados e incidencias de
   negocio se confirman juntos; un fallo técnico antes de confirmar revierte el grupo y después se
   registra de forma persistente la incidencia técnica. Los periodos completados se conservan
@@ -149,6 +174,13 @@ Sync Impact Report
   archivo: Pendiente, En proceso, Cargado, Finalizado, Notificado [README §2] y Fallido
   [Decisión]; no se inventan otros. Recorrido satisfactorio: Pendiente → En proceso → Cargado →
   Finalizado → Notificado. [Decisión]
+- Transiciones permitidas: Pendiente → En proceso; En proceso → Cargado; Cargado → Finalizado;
+  Finalizado → Notificado; Pendiente o En proceso → Fallido ante un fallo técnico terminal.
+  Notificado y Fallido son terminales; Fallido no se origina desde Cargado ni Finalizado. Cada
+  transición aplicada se conserva en el historial. Un error transitorio recuperable no cambia
+  el estado; no se marca Fallido por cualquier caída del proceso ni por un reinicio. [Decisión]
+- Si falla el paso Cargado → Finalizado, la carga conserva Cargado y se recupera la finalización
+  sin reprocesar productos confirmados. [Decisión]
 - Significado: Pendiente = registrado, esperando procesamiento; En proceso = lectura, validación
   y procesamiento; Cargado = productos aceptados e incidencias persistidos, resueltos todos los
   grupos; Finalizado = procesamiento completo y resultado preparado para notificar; Notificado =
@@ -168,12 +200,18 @@ Sync Impact Report
   Authentication. [README §2] [Decisión]
 - Control valida el permiso para ejecutar cargas masivas. [README §3]
 - Rate Limiting obligatorio. [README §4]
-- Polly para reintentos y Circuit Breaker; el plan define operaciones, errores elegibles y
-  parámetros, evitando duplicar efectos de escritura. Los reintentos son limitados; reintentar o
+- Polly para reintentos y Circuit Breaker; los parámetros concretos (cantidad, intervalos, errores
+  reintentables, operaciones protegidas) se definen en las features de Control, Carga Masiva y
+  Notificaciones, evitando duplicar efectos de escritura. Los reintentos son limitados; reintentar o
   reentregar un mensaje no duplica productos, no reprocesa periodos completados ni reporta como
   Existente un producto ya confirmado por la misma carga. Sin interfaz ni endpoint de reintentos.
   [README §4] [Decisión]
 - RabbitMQ con las colas `carga_masiva` y `notificaciones`. [README §2 y §4] [Decisión]
+- Para este examen: una sola instancia activa del consumidor de carga masiva, con procesamiento
+  secuencial de mensajes y de grupos de periodo; las ejecuciones interrumpidas se recuperan antes
+  de consumir nuevos mensajes y los periodos completados se conservan. Configurar una réplica no
+  es por sí misma una garantía de exclusividad: se exige un mecanismo que la asegure con la
+  infraestructura existente (sin servicios de barrido, Cronos ni Redis). [Decisión]
 - SeaweedFS almacena los Excel. [README §2] [Decisión]
 - MailKit configurable por variables de entorno. [README §4]
 - MUST NOT trasladarse del Gateway de referencia: Happy, Code/Header/IdentityPool, Reec, AWS,
@@ -213,12 +251,13 @@ Sync Impact Report
   versiones antiguas de los repositorios. [Decisión]
 
 ## Pendientes y no autorizado
-Permanecen pendientes (no decididos): host Api/Worker de los
-consumidores; tratamiento de Data sin resultado y serialización de `Response<T>`; rotación y
-retención de logs; cantidad, intervalos y errores reintentables de Polly; mecanismo de hash de
-contraseñas y de protección ante concurrencia; límites de tamaño de archivo; contenido exacto del
-correo; React; modelo mínimo de tablas y responsabilidades de los procedimientos almacenados.
-Refresh tokens es opcional en el README y no está decidido.
+Permanecen pendientes (no decididos): host Api/Worker de los consumidores; tratamiento de Data
+sin resultado y serialización de `Response<T>`; rotación y retención de logs; parámetros de
+Polly (se fijan en las features de Control, Carga Masiva y Notificaciones); tratamiento operativo
+de archivos ilegibles y recuperación de notificaciones no publicadas (features del servicio
+que corresponda); límites de tamaño de archivo; contenido exacto del correo; React; verificación
+operativa de Docker y SQL Server en el equipo de ejecución (no bloquea la creación de la base). Refresh tokens es opcional en el
+README y no está decidido.
 No se adoptan las convenciones de idioma, commits ni versionado de endpoints del ejemplo Bistro.
 
 ## Governance
@@ -228,4 +267,4 @@ eliminaciones incompatibles; MINOR por principios o secciones nuevas; PATCH por 
 Toda especificación, plan y tarea MUST verificar cumplimiento de esta constitución, indicar la
 procedencia de cada obligación y justificar cualquier complejidad añadida.
 
-**Version**: 1.1.1 | **Ratified**: TODO(RATIFICATION_DATE): pendiente de aprobación del usuario | **Last Amended**: 2026-11-02
+**Version**: 1.3.0 | **Ratified**: TODO(RATIFICATION_DATE): pendiente de aprobación del usuario | **Last Amended**: 2026-11-02
