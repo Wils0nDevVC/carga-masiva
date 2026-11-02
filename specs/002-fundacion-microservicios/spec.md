@@ -214,7 +214,7 @@ Cada servicio se configura por entorno, usa variables de entorno para secretos, 
 
 ## Assumptions
 
-- Las reglas de negocio, el modelo y los contratos de procedimientos son los de la Feature 001; aquí solo se materializan en migraciones. El modelo de referencia usa `Usuario.RolId` (un rol por usuario), cuya confirmación sigue pendiente en la Feature 001.
+- Las reglas de negocio, el modelo y los contratos de procedimientos son los de la Feature 001; aquí solo se materializan en migraciones. Cada usuario tiene un solo rol mediante `Usuario.RolId`, sin tabla intermedia (confirmado por el usuario). [Decisión]
 - Una sola instancia de Control durante el examen; el plan decide si basta o si hace falta protección adicional ante arranques simultáneos.
 - Los errores no exponen detalles internos al cliente (valor por defecto de seguridad coherente con el no registrar secretos).
 - Las versiones de los paquetes, los puertos, los parámetros de rotación y retención de logs, el formato exacto de la comprobación de salud, el tratamiento de `Data` sin resultado y la serialización de `Response<T>` se resuelven en el plan con soluciones mínimas. [Constitución §5, §10, §12]
@@ -224,7 +224,7 @@ Cada servicio se configura por entorno, usa variables de entorno para secretos, 
 
 ## Asuntos pendientes (no son requisitos aprobados)
 
-- Base y volumen existentes en este equipo creados por el runner anterior: el plan debe usar una base nueva y vacía (nombre o volumen distintos) y conservar los existentes.
+- Base y volumen existentes en este equipo creados por el runner anterior: resuelto por decisión del usuario y recogido en el plan: base nueva con otro nombre dentro de la instancia existente; la base anterior y su volumen se conservan.
 - Verificación operativa de Docker y SQL Server: la imagen es amd64 y se ejecuta emulada en Apple silicon, sin soporte oficial de Microsoft; solo se comprobó en este equipo con el runner anterior. No se declara Docker funcional.
-- Compatibilidad y licencia de EF Core 10 y de los demás paquetes (sin fijar versiones): se verifican en el plan.
-- Detalles que el plan debe fijar: conjunto mínimo de Repository/Unit of Work, aplicación de FluentValidation a las solicitudes, forma de la comprobación de salud y de la espera de SQL Server, manejo de un fallo parcial de migración y estructura de solución por servicio.
+- Compatibilidad y licencia de EF Core 10 y de los demás paquetes: verificadas en el plan (`research.md` D-02).
+- Detalles técnicos (Repository/Unit of Work mínimos, FluentValidation, salud y espera de SQL Server, migración fallida y arranques simultáneos, estructura de solución): resueltos en el plan (`research.md` D-04 a D-11).

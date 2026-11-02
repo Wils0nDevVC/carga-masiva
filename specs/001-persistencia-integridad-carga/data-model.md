@@ -15,7 +15,7 @@ Modelo lógico/físico propuesto por el plan; `IntentosProceso`, `PeriodoReserva
 | Incidencia | Fallidos, existentes y errores técnicos persistentes | Req (README §3); spec FR-033, FR-034 |
 | ~~SchemaMigraciones~~ | Registro del runner anterior; **sustituida** por el historial de migraciones de EF Core (`__EFMigrationsHistory`, administrado por EF; no es tabla del modelo) | Dec (migraciones EF Core desde ms-control) |
 
-Cambio frente a la versión anterior del plan: **se elimina `UsuarioRol`**. Ningún requisito exige varios roles por usuario; `Usuario.RolId` basta para "persistir usuarios, roles y su asociación". Si se aprueba más de un rol por usuario, se restituye una tabla puente.
+Cambio frente a la versión anterior del plan: **se elimina `UsuarioRol`**. Ningún requisito exige varios roles por usuario; `Usuario.RolId` basta para "persistir usuarios, roles y su asociación". Confirmado por el usuario: un solo rol por usuario; no se crea tabla intermedia.
 
 ## Relaciones
 
@@ -35,7 +35,7 @@ SchemaMigraciones (sustituida; ver nota en la tabla de tablas)
 | **Usuario.Id** | INT IDENTITY | No | PK | Prop |
 | Usuario.Email | NVARCHAR(256) UNIQUE | No | Identificador de acceso; el README usa un correo como usuario; 256 como cota práctica de un correo | Req (mensaje README §3) / Prop longitud |
 | Usuario.PasswordHash | VARCHAR(255) | No | Una sola cadena autodescriptiva generada por `PasswordHasher` de ASP.NET Core Identity en ms-autenticacion; ASCII; la longitud se confirma allí | Dec: hash; Prop: tipo y longitud |
-| Usuario.RolId | SMALLINT FK → Rol | No | Asociación usuario–rol | Dec / Prop (1 rol) |
+| Usuario.RolId | SMALLINT FK → Rol | No | Asociación usuario–rol | Dec (1 rol, confirmado) |
 | **CargaArchivo.Id** (`idCarga`) | BIGINT IDENTITY | No | PK; identifica la carga | Req |
 | CargaArchivo.NombreArchivo | NVARCHAR(260) | No | Nombre original del archivo; 260 = longitud máxima de ruta clásica de Windows | Req (README §5) / Prop longitud |
 | CargaArchivo.UsuarioId | INT FK → Usuario | No | Quién subió el archivo | Req |

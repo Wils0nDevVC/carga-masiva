@@ -75,7 +75,7 @@ Los parámetros (cantidad, intervalos, errores reintentables, operaciones proteg
 
 ## R-10 Identidad y usuarios iniciales
 - Dec: identidad propia en SQL Server; roles Administrador y Operador; hash; usuarios iniciales por configuración externa, creados por ms-autenticacion al arrancar, repetible, sin sobrescribir contraseñas. Contrato de almacenamiento en `contracts/`.
-- Prop: asociación como `Usuario.RolId` (sin tabla puente).
+- Dec (confirmado): asociación como `Usuario.RolId`, un solo rol por usuario, sin tabla puente.
 - **Hash (Dec)**: `PasswordHasher` de ASP.NET Core Identity en ms-autenticacion, sin implementar PBKDF2 manualmente. Esta feature solo define el almacenamiento: una cadena autodescriptiva en `Usuario.PasswordHash`. La longitud de salida y la disponibilidad en .NET 10 se verifican en la feature de Autenticación; `VARCHAR(255)` es la cota propuesta.
 
 ## R-11 SQL Server y Docker: comprobaciones realizadas
@@ -123,7 +123,7 @@ Justificación tabla por tabla en `data-model.md`. Cambios: se elimina `UsuarioR
 Resueltos por decisión del usuario: precisión y longitudes (R-08), fallo terminal (R-03), duplicados con ganador revertido (R-05), "espacios" (R-07), archivo ilegible (R-03), notificaciones no publicadas (feature del servicio que publica), hash (R-10), `IntentosProceso` y `PeriodoReservado` (R-13) y condición de la collation (R-07).
 
 Quedan, sin bloquear la creación de la base:
-1. Eliminación de `UsuarioRol` (un rol por usuario): propuesta del plan; el usuario no la ha confirmado de forma explícita.
+1. (Resuelto) Eliminación de `UsuarioRol`: el usuario confirmó un solo rol por usuario mediante `Usuario.RolId`.
 2. Equipo de evaluación: se desconoce; el motor amd64 corre emulado en Apple silicon (R-11) y su soporte no está respaldado por Microsoft.
 
 Resuelto en la implementación: el nombre `Latin1_General_100_CI_AS_WS` está verificado en la documentación oficial ("Windows collation name": `CI` = no distingue mayúsculas, `AS` = sensible a acentos; omitir `WS` = insensible al ancho, `WS` = sensible al ancho; orden `CI_AS_[KS]_[WS]`) y SQL Server lo aceptó al crear la columna.

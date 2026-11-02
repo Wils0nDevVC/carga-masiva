@@ -105,4 +105,4 @@ database/
 
 ## Pendientes tras el plan
 
-Ver `research.md` (Abiertos) y `spec.md` (Asuntos pendientes). Resumen: confirmación de la eliminación de `UsuarioRol` (un rol por usuario), verificación del nombre exacto de la collation al escribir el script y verificación operativa de Docker/SQL Server. Diferidos a otras features: tratamiento operativo del archivo ilegible, recuperación de notificaciones no publicadas, parámetros de Polly y longitud del hash. Ninguno bloquea la creación de la base.
+Ver `research.md` (Abiertos) y `spec.md` (Asuntos pendientes). Resumen: (confirmado por el usuario: un solo rol por usuario mediante `Usuario.RolId`, sin tabla intermedia) verificación del nombre exacto de la collation al escribir el script y verificación operativa de Docker/SQL Server. Diferidos a otras features: tratamiento operativo del archivo ilegible, recuperación de notificaciones no publicadas, parámetros de Polly y longitud del hash. Ninguno bloquea la creación de la base.
