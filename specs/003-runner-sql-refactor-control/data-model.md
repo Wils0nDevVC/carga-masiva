@@ -1,5 +1,8 @@
 # Data Model: registro de scripts, modelo de Control tras la limpieza e ingeniería inversa
 
+> **Nota (Feature 004, 2026-11-02)**: las entidades por servicio de la tabla "Modelo EF Core por servicio" (sin entidades en ninguno) quedaron **precisadas** por `specs/004-conexion-entidades-por-servicio/`: ms-autenticacion `Rol` y `Usuario`; ms-control `CargaArchivo`, `CargaEstadoHistorial` e `Incidencia`; ms-carga-masiva `CargaArchivo`, `CargaPeriodo`, `Producto` e `Incidencia`; ms-notificaciones `Incidencia` (obtenidas por ingeniería inversa; sin el modelo completo en ningún servicio). El esquema sigue gestionado por el runner de `database/`. El texto original se conserva como historial.
+
+
 El esquema, sus reglas y los procedimientos son los de la Feature 001 y de `referencias/V001__esquema_inicial.sql` y `V002__procedimientos.sql`, ya presentes sin cambios en `database/scripts/`. **No se cambian tablas, roles ni reglas.** Aquí solo se fijan qué modela cada servicio en EF Core y cómo se obtiene el modelo. Procedencia: `Dec`, `Obs`, `Plan` como en `research.md`.
 
 ## Esquema creado por el runner (Dec)

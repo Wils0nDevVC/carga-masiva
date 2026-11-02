@@ -34,6 +34,8 @@ En los casos de error no se ejecuta el bootstrap ni ningún script, de modo que 
 
 ## D-04 Retiro del modelo de Control tras revisar referencias (Dec)
 
+> **Nota (Feature 004, 2026-11-02)**: tras este retiro, la Feature 004 incorpora a Control solo `CargaArchivo`, `CargaEstadoHistorial` e `Incidencia` (por su función de recepción y seguimiento, con `Usuario` y `Producto`/`CargaPeriodo` diferidos), y a los demás servicios sus entidades por ingeniería inversa. La decisión de retirar las siete entidades de esta feature (por no tener entonces referencias ni función aprobada) se conserva como historial.
+
 **Proceso en dos fases (Dec)**:
 1. **Revisión (provisional)**: mientras se reúne evidencia, cualquier entidad cuyo uso esté en duda se conserva provisionalmente; no se retira nada por suposición.
 2. **Decisión final**: por entidad se documenta su uso o ausencia, y se conserva solo si existe una referencia actual o una función de Control implementada o aprobada. No se conservan ni se agregan entidades por necesidades futuras supuestas.

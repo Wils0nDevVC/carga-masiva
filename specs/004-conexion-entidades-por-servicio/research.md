@@ -54,11 +54,12 @@ Esquema y `database/`, runner y orden en Compose, `AppDbContext`, `AddInfrastruc
 
 La matriz del plan es la de la spec (10 mapeos). Ajustes al leer el plan con la spec: (a) pendiente "`CargaArchivo` en Notificaciones" resuelto (D-03: no se mapea); (b) pendiente de verificación de conexión resuelto (D-06); (c) `Usuario` y `Producto`/`CargaPeriodo` en Control, diferidos por indicación; (d) FR-010 precisado (D-05). No hay contradicciones bloqueantes.
 
-## Abiertos (se resuelven en la implementación; no se asumen)
+## Abiertos (resueltos en la implementación; resultados en `quickstart.md`, sección "Resultados")
 
-1. Que el scaffold limitado por tablas omita las claves foráneas hacia tablas no incluidas.
-2. Que `UseCollation` en `CodigoProducto` no altere las consultas LINQ (D-07).
-3. Conexión y lectura reales por servicio con el `.cs` de comprobación (solo se verificó con el contexto sin entidades).
-4. Correspondencia mapeo ↔ catálogo por entidad con 0 diferencias.
-5. Compilación sin advertencias, `/health` = 200 y esquema y registro sin cambios tras arrancar los cuatro servicios.
-6. Validación solo en este equipo (motor amd64 emulado sin soporte de Microsoft); equipo de evaluación sin validar.
+1. **Resuelto**: el scaffold limitado por tablas **omite** las claves foráneas hacia tablas no incluidas (avisos `Skipping foreign key …`) y deja solo la columna (`CargaArchivo.UsuarioId`, `Incidencia.CargaPeriodoId` en Control y Carga Masiva; `Incidencia.CargaId` y `CargaPeriodoId` en Notificaciones). Sí genera navegaciones entre tablas incluidas (se quitaron al integrar).
+2. **Resuelto**: `UseCollation` en `CodigoProducto` no altera las consultas: EF emite `WHERE [p].[CodigoProducto] = @codigo` sin `COLLATE`; "p0117" encuentra "P0117" y "á" no iguala "a" (base temporal, eliminada).
+3. **Resuelto**: conexión y lectura reales por servicio con los `chk` (`CanConnect=True`, `DB_NAME=CargaMasivaApp`, 2, 3, 4 y 1 entidades, lecturas sin error).
+4. **Resuelto**: correspondencia mapeo ↔ catálogo con 0 diferencias en los cuatro servicios.
+5. **Resuelto**: compilación sin advertencias, `/health` = 200 y esquema y registro sin cambios tras reconstruir y arrancar.
+6. **Parcial**: validación solo en este equipo (motor amd64 emulado sin soporte de Microsoft); equipo de evaluación sin validar.
+7. **Hallazgo**: el scaffold no emite `ToTable` ni `HasKey`; se añadieron explícitos. El modelo en ejecución de EF es de solo lectura optimizada: la comprobación de metadatos relacionales usa `IDesignTimeModel`.
