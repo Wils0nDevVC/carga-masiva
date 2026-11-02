@@ -1,5 +1,7 @@
 # Tasks: Fundación común de los cuatro microservicios
 
+> **Nota (Feature 003, 2026-11-02)**: la gestión del esquema con EF Core Migrations desde `ms-control` descrita aquí (propiedad única de Control, aplicación al iniciar, guarda de base heredada, orden SQL Server → Control → resto y `/health` de Control «listo tras migrar») fue **sustituida** por scripts SQL versionados de `database/` aplicados por un runner ejecutado desde Docker Compose (constitución v3.0.0; ver `specs/003-runner-sql-refactor-control/`). Lo demás de esta feature (estructura de capas, `Response<T>`, manejo de errores, Serilog, Dockerfiles, `/health`) sigue vigente. El texto original se conserva como historial.
+
 **Input**: `specs/002-fundacion-microservicios/` (plan.md, spec.md, research.md, data-model.md, contracts/http-y-operacion.md, quickstart.md)
 
 **Alcance**: los cuatro `ms-*/` y `compose.yaml`/`.env.example` de la raíz. No se tocan `database/`, `referencias/`, `api-gateway/` ni la constitución. Sin pruebas automatizadas, proyectos de tests ni funcionalidades nuevas (login, Excel, RabbitMQ, SeaweedFS, correo, Polly). Verificación manual con `quickstart.md`.

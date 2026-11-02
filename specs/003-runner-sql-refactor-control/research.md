@@ -87,11 +87,12 @@ No se modifican en esta etapa. En la implementación se añaden notas de "sustit
 
 Reglas de negocio, esquema aprobado (V001), procedimientos (V002), roles, contraseñas y usuarios iniciales, `Response<T>`, Serilog y volúmenes de logs, Dockerfiles de los servicios, puertos, `restart: "no"`, nombre del proyecto Compose, `sqlserver` y su volumen. Las bases `CargaMasiva` y `CargaMasivaDb` y sus volúmenes no se tocan.
 
-## Abiertos (se resuelven en la implementación; no se asumen)
+## Abiertos (resueltos en la implementación; resultados en `quickstart.md`, sección "Resultados")
 
-1. Comportamiento real de `docker compose up -d` con `service_completed_successfully` (runner correcto y runner fallido) en este Compose y reejecución del runner en cada `up`.
-2. Que la comprobación previa (D-03) detecte una base con `__EFMigrationsHistory` y una base con tablas sin registro, sin modificarlas. Se prueba solo en bases temporales (`CargaMasivaApp_*`) preparadas para simular esos casos; el runner no se apunta a `CargaMasiva` ni a `CargaMasivaDb`.
-3. Equivalencia del esquema creado por el runner en `CargaMasivaApp` con `referencias/V001`/`V002` por catálogo, y repetición de las reglas de la Feature 001.
-4. Ingeniería inversa real contra la base nueva para una tabla (carpeta temporal).
-5. Salida del runner sin secretos; ningún cambio en `CargaMasiva`, `CargaMasivaDb` ni volúmenes (huellas antes y después).
-6. Validación completa de Compose en este equipo; equipo de evaluación sin validar (motor amd64 emulado sin soporte de Microsoft).
+1. **Resuelto**: `service_completed_successfully` funciona en este Compose: con el runner correcto arrancan los cuatro servicios; con el runner fallido `docker compose up` termina con código 1 (`service "database-runner" didn't complete successfully: exit 1`) y ningún servicio arranca (queda `Created` el recreado). El runner **se vuelve a ejecutar en cada `up`** y sale 0 sin pendientes.
+2. **Resuelto**: la comprobación previa detecta `__EFMigrationsHistory` y tablas sin registro y deja la base intacta (probado solo en bases temporales).
+3. **Resuelto**: catálogo de `CargaMasivaApp` idéntico al de `CargaMasiva`/`referencias/`; reglas de la Feature 001 repetidas (28 + 27 comprobaciones aprobadas; concurrencia de 40 periodos sin errores).
+4. **Resuelto**: `dotnet ef dbcontext scaffold` de una tabla funciona con la herramienta local y el paquete de diseño de Control (comando en `data-model.md`).
+5. **Resuelto**: salida del runner sin secretos; `CargaMasiva`, `CargaMasivaDb` y los volúmenes con huella idéntica.
+6. **Parcial**: validación completa de Compose hecha en este equipo; equipo de evaluación sin validar (motor amd64 emulado sin soporte de Microsoft).
+7. **Hallazgo nuevo**: con SQL Server detenido, la espera acotada del runner tardó unos 9,5 minutos o más.

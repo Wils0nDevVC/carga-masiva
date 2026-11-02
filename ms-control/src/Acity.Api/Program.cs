@@ -2,7 +2,6 @@ using Acity.Api.Handlers;
 using Acity.Application;
 using Acity.Common.Helpers;
 using Acity.Infrastructure;
-using Acity.Infrastructure.Persistence;
 using Serilog;
 
 Log.Logger = new LoggerConfiguration().WriteTo.Console().CreateBootstrapLogger();
@@ -22,10 +21,6 @@ try
     builder.Services.AddInfrastructure(builder.Configuration);
 
     var app = builder.Build();
-
-    // Inicialización del esquema: Control es el único propietario de las migraciones.
-    // Se ejecuta antes de empezar a escuchar, por lo que /health solo responde tras migrar.
-    await DatabaseInitializer.InitializeAsync(app.Services, app.Configuration, app.Logger);
 
     app.UseExceptionHandler(_ => { });
     app.UseStatusCodePages(async statusCodeContext =>

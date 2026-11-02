@@ -1,5 +1,7 @@
 # Research: Fundación común de los cuatro microservicios
 
+> **Nota (Feature 003, 2026-11-02)**: la gestión del esquema con EF Core Migrations desde `ms-control` descrita aquí (propiedad única de Control, aplicación al iniciar, guarda de base heredada, orden SQL Server → Control → resto y `/health` de Control «listo tras migrar») fue **sustituida** por scripts SQL versionados de `database/` aplicados por un runner ejecutado desde Docker Compose (constitución v3.0.0; ver `specs/003-runner-sql-refactor-control/`). Lo demás de esta feature (estructura de capas, `Response<T>`, manejo de errores, Serilog, Dockerfiles, `/health`) sigue vigente. El texto original se conserva como historial.
+
 Procedencia: **Dec** = decisión del usuario o de la constitución; **Ref** = observado en el repositorio de referencia; **Plan** = decisión técnica de este plan, tomada con la alternativa más sencilla compatible con las fuentes; **Verif** = comprobado en esta sesión (fecha 2-nov-2026) con la fuente indicada; **Sin verificar** = pendiente para la implementación. Ninguna decisión de negocio se reabre.
 
 ## D-01 Organización tomada de la referencia

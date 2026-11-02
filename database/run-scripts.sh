@@ -1,6 +1,9 @@
 #!/usr/bin/env bash
-# Runner unico de scripts versionados (research R-12). Se ejecuta una vez por arranque.
+# Runner unico de scripts versionados (constitucion v3.0.0; Feature 003). Docker Compose lo ejecuta
+# una vez por "up", despues de SQL Server y antes de los microservicios.
 #  - Un solo responsable del esquema: aplica Vnnn__*.sql en orden y los registra en SchemaMigraciones.
+#  - Antes de crear nada comprueba la base: no se aplica sobre una base con historial de EF Core
+#    (__EFMigrationsHistory) ni con tablas sin registro del runner (no se mezclan historiales).
 #  - Una sola sesion sqlcmd mantiene un cerrojo de aplicacion (sp_getapplock, Session, timeout 0).
 #  - Cada script corre en su propia transaccion con XACT_ABORT; si falla, sqlcmd sale con error
 #    (:on error exit), la conexion se cierra, SQL Server revierte y el script no queda registrado.
@@ -13,10 +16,12 @@ SQLCMD="${SQLCMD:-/opt/mssql-tools18/bin/sqlcmd}"
 DB_HOST="${DB_HOST:-sqlserver}"
 DB_PORT="${DB_PORT:-1433}"
 DB_USER="${DB_USER:-sa}"
-DB_NAME="${DB_NAME:-CargaMasiva}"
 SCRIPTS_DIR="${SCRIPTS_DIR:-/database/scripts}"
 BOOTSTRAP_SQL="${BOOTSTRAP_SQL:-/database/bootstrap.sql}"
 
+# Sin valor por defecto: el nombre de la base destino siempre es explicito (no se opera por descuido
+# sobre una base existente).
+: "${DB_NAME:?Defina DB_NAME (variable de entorno)}"
 : "${MSSQL_SA_PASSWORD:?Defina MSSQL_SA_PASSWORD (variable de entorno)}"
 export SQLCMDPASSWORD="$MSSQL_SA_PASSWORD"   # evita pasar la contrasena como argumento
 
@@ -34,6 +39,18 @@ for i in $(seq 1 60); do
   if [[ "$i" == 60 ]]; then echo "SQL Server no responde tras 60 intentos." >&2; exit 1; fi
   sleep 2
 done
+
+echo "Comprobando la base $DB_NAME ..."
+state="$(run -d master -h -1 -W -Q "SET NOCOUNT ON; IF DB_ID(N'$DB_NAME') IS NULL SELECT 'NUEVA' ELSE IF OBJECT_ID(N'[$DB_NAME].dbo.__EFMigrationsHistory', N'U') IS NOT NULL SELECT 'EF' ELSE IF OBJECT_ID(N'[$DB_NAME].dbo.SchemaMigraciones', N'U') IS NULL AND EXISTS (SELECT 1 FROM [$DB_NAME].sys.tables) SELECT 'SINREGISTRO' ELSE SELECT 'OK'" | tr -d '[:space:]')"
+case "$state" in
+  NUEVA|OK) ;;
+  EF)
+    echo "ERROR: la base $DB_NAME tiene historial de EF Core (__EFMigrationsHistory). No se mezclan historiales: se usa una base nueva y vacia. La base no se modifico." >&2; exit 1 ;;
+  SINREGISTRO)
+    echo "ERROR: la base $DB_NAME tiene tablas sin registro del runner (SchemaMigraciones). No se aplica nada sobre ella: se usa una base nueva y vacia. La base no se modifico." >&2; exit 1 ;;
+  *)
+    echo "ERROR: no se pudo determinar el estado de la base $DB_NAME." >&2; exit 1 ;;
+esac
 
 echo "Bootstrap (base $DB_NAME y SchemaMigraciones) ..."
 run -d master -v DB_NAME="$DB_NAME" -i "$BOOTSTRAP_SQL"

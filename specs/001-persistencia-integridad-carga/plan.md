@@ -1,5 +1,7 @@
 # Implementation Plan: Persistencia y reglas de integridad para la carga masiva
 
+> **Nota (Feature 003, 2026-11-02)**: el runner de scripts de `database/` **vuelve a ser el mecanismo activo** de gestión del esquema (constitución v3.0.0; ver `specs/003-runner-sql-refactor-control/`), sustituyendo a las migraciones EF Core de `ms-control` que mencionan las notas de estrategia sustituida de este documento. Las reglas de negocio, el modelo de datos y los contratos de procedimientos no cambian. El texto original se conserva como historial.
+
 **Branch**: `001-persistencia-integridad-carga` (trabajo en `main`; sin rama dedicada) | **Date**: 2026-11-02 | **Spec**: [spec.md](spec.md)
 
 **Input**: Feature specification from `specs/001-persistencia-integridad-carga/spec.md`

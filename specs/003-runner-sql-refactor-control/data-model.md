@@ -50,3 +50,20 @@ Requisitos mínimos: la herramienta y el paquete de diseño ya presentes en Cont
 ## Verificación de equivalencia (en la implementación)
 
 Sobre una base nueva y vacía, comparar con consultas de catálogo el resultado del runner con la referencia (tablas, columnas y tipos, collation de `CodigoProducto`, nulabilidad, valores por defecto, CHECK, claves foráneas, índices incluido el filtro, roles base y los dos procedimientos) y repetir manualmente los escenarios de base de la Feature 001 (reserva, índice filtrado, comparación de códigos, matriz de estados, fallo terminal). Ver `quickstart.md`.
+
+## Verificación del procedimiento (implementación, T034; 2026-11-02, este equipo)
+
+Ejecutado contra `CargaMasivaApp` (creada por el runner) para una sola tabla, con salida a una carpeta temporal fuera del repositorio (descartada después; `git status` sin archivos nuevos). Desde `ms-control/`, con la cadena de conexión en una variable de entorno de la sesión (`Server=localhost,14333;Database=<base>;User Id=sa;Password=<desde el entorno>;Encrypt=True;TrustServerCertificate=True`):
+
+```text
+dotnet tool restore
+dotnet ef dbcontext scaffold "$CONN" Microsoft.EntityFrameworkCore.SqlServer \
+  --project src/Acity.Infrastructure --startup-project src/Acity.Api \
+  --table dbo.Rol --no-onconfiguring --context ScaffoldContext \
+  --output-dir <carpeta-temporal>/Entities --context-dir <carpeta-temporal>/Context \
+  --namespace Scaffold.Entities --context-namespace Scaffold.Context
+```
+
+Resultado: código 0 en ~3 s; la salida (sin la contraseña) solo menciona la compilación; se generó únicamente `Rol.cs` (entidad parcial con `Id` smallint y `Nombre` string) y `ScaffoldContext.cs` (un `DbSet<Rol>` llamado `Rols`, `ToTable("Rol")`, `HasIndex(e => e.Nombre, "UQ_Rol_Nombre").IsUnique()`, `ValueGeneratedNever` en `Id` y `HasMaxLength(50)`). Observaciones para la integración manual: el generador crea una entidad y un contexto propios que no se copian tal cual; de ahí solo se toma lo que el servicio use (la entidad hacia `Acity.Domain`; el mapeo hacia `Acity.Infrastructure/Persistence`, p. ej. una configuración o el `AppDbContext` existente); se revisan nombres como el plural `Rols`; no se llevan unicidades, índices ni longitudes que el servicio no necesite; la ejecución real de la herramienta no se integró al repositorio.
+
+Los servicios `ms-autenticacion`, `ms-carga-masiva` y `ms-notificaciones` no tienen hoy el manifiesto de herramientas ni el paquete de diseño; aplicarán este procedimiento en su propia feature funcional, cuando necesiten entidades, añadiendo en su servicio la herramienta y el paquete con las mismas versiones ya autorizadas (10.0.14) como dependencia de desarrollo. Esta feature no los añade.

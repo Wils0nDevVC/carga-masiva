@@ -1,5 +1,7 @@
 # Quickstart: validación manual del modelo de persistencia
 
+> **Nota (Feature 003, 2026-11-02)**: el runner de scripts de `database/` **vuelve a ser el mecanismo activo** de gestión del esquema (constitución v3.0.0; ver `specs/003-runner-sql-refactor-control/`), sustituyendo a las migraciones EF Core de `ms-control` que mencionan las notas de estrategia sustituida de este documento. Las reglas de negocio, el modelo de datos y los contratos de procedimientos no cambian. El texto original se conserva como historial.
+
 Guía de verificación manual (sin pruebas automatizadas) para cuando existan las migraciones de ms-control y los consumidores. **Estrategia de despliegue sustituida**: el runner de `database/` ya no es el flujo activo; el esquema lo aplican migraciones EF Core al iniciar ms-control (feature pendiente; ver research R-14). Modelo: [data-model.md](data-model.md); contratos: [contracts/procedimientos-almacenados.md](contracts/procedimientos-almacenados.md); mecanismos: [research.md](research.md). A la fecha ms-control y sus migraciones **no existen**; Docker/SQL Server solo se verificó con el runner anterior (research R-11).
 
 ## Prerrequisitos

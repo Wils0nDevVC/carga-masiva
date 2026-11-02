@@ -1,5 +1,7 @@
 # Data Model: Persistencia y reglas de integridad para la carga masiva
 
+> **Nota (Feature 003, 2026-11-02)**: el runner de scripts de `database/` **vuelve a ser el mecanismo activo** de gestión del esquema (constitución v3.0.0; ver `specs/003-runner-sql-refactor-control/`), sustituyendo a las migraciones EF Core de `ms-control` que mencionan las notas de estrategia sustituida de este documento. Las reglas de negocio, el modelo de datos y los contratos de procedimientos no cambian. El texto original se conserva como historial.
+
 Modelo lógico/físico propuesto por el plan; `IntentosProceso`, `PeriodoReservado`, el hash y la condición de la collation están aceptados por el usuario. No es SQL ni configuración de EF Core. Procedencia: **Req** = requisito del README; **Dec** = decisión del usuario; **Prop** = propuesta de este plan. Ninguna longitud se deduce del Excel de ejemplo. Fechas `DATETIME2` en UTC.
 
 ## Tablas y justificación (8)

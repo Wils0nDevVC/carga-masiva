@@ -1,5 +1,7 @@
 # Quickstart: validación manual de la fundación
 
+> **Nota (Feature 003, 2026-11-02)**: la gestión del esquema con EF Core Migrations desde `ms-control` descrita aquí (propiedad única de Control, aplicación al iniciar, guarda de base heredada, orden SQL Server → Control → resto y `/health` de Control «listo tras migrar») fue **sustituida** por scripts SQL versionados de `database/` aplicados por un runner ejecutado desde Docker Compose (constitución v3.0.0; ver `specs/003-runner-sql-refactor-control/`). Lo demás de esta feature (estructura de capas, `Response<T>`, manejo de errores, Serilog, Dockerfiles, `/health`) sigue vigente. El texto original se conserva como historial.
+
 Guía de verificación manual (sin pruebas automatizadas) para cuando exista la implementación. El 2-nov-2026 se implementó la fundación y se ejecutaron los escenarios que indica la sección **Resultados** al final; los no ejecutados se señalan como tales. Contratos: [contracts/http-y-operacion.md](contracts/http-y-operacion.md); modelo: [data-model.md](data-model.md); decisiones: [research.md](research.md).
 
 **Limitación vigente**: el motor SQL Server es amd64 y corre emulado en Apple silicon, sin soporte oficial de Microsoft. La validación de abajo se hizo **solo en este equipo**; no se generaliza al equipo de evaluación.

@@ -1,7 +1,7 @@
 name: carga-masiva
 
-# El esquema lo crea ms-control con migraciones EF Core al iniciar (único propietario); los demás servicios
-# arrancan solo cuando ms-control está healthy. El runner de database/ se retiró de Compose.
+# El esquema lo crea el runner de database/ (scripts SQL versionados): SQL Server healthy -> database-runner
+# completado con éxito -> los cuatro microservicios. Ningún servicio crea ni modifica el esquema al arrancar.
 # Si MSSQL_SA_PASSWORD está exportada en el shell, tiene prioridad sobre el valor de .env.
 x-app-healthcheck: &app-healthcheck
   test: ["CMD", "bash", "-c", "exec 3<>/dev/tcp/127.0.0.1/8080 && printf 'GET /health HTTP/1.0\\r\\nHost: localhost\\r\\n\\r\\n' >&3 && head -n1 <&3 | grep -q ' 200 '"]
@@ -30,16 +30,33 @@ services:
       retries: 30
       start_period: 40s
 
+  # Runner de scripts versionados de database/: ejecucion unica; aplica solo las versiones pendientes.
+  database-runner:
+    build:
+      context: ./database
+    image: carga-masiva-database-runner:local
+    # Reutiliza la imagen del motor (incluye sqlcmd): misma plataforma amd64 emulada.
+    platform: linux/amd64
+    depends_on:
+      sqlserver:
+        condition: service_healthy
+    environment:
+      DB_HOST: sqlserver
+      DB_PORT: "1433"
+      DB_NAME: ${DB_NAME:-CargaMasivaApp}
+      MSSQL_SA_PASSWORD: ${MSSQL_SA_PASSWORD:?Defina MSSQL_SA_PASSWORD}
+    restart: "no"
+
   ms-control:
     build:
       context: ./ms-control
     image: carga-masiva-ms-control:local
     depends_on:
-      sqlserver:
-        condition: service_healthy
+      database-runner:
+        condition: service_completed_successfully
     environment:
       ASPNETCORE_ENVIRONMENT: Production
-      ConnectionStrings__Default: "Server=sqlserver,1433;Database=${DB_NAME:-CargaMasivaDb};User Id=sa;Password=${MSSQL_SA_PASSWORD:?Defina MSSQL_SA_PASSWORD};Encrypt=True;TrustServerCertificate=True"
+      ConnectionStrings__Default: "Server=sqlserver,1433;Database=${DB_NAME:-CargaMasivaApp};User Id=sa;Password=${MSSQL_SA_PASSWORD:?Defina MSSQL_SA_PASSWORD};Encrypt=True;TrustServerCertificate=True"
     ports:
       - "8082:8080"
     volumes:
@@ -52,11 +69,11 @@ services:
       context: ./ms-autenticacion
     image: carga-masiva-ms-autenticacion:local
     depends_on:
-      ms-control:
-        condition: service_healthy
+      database-runner:
+        condition: service_completed_successfully
     environment:
       ASPNETCORE_ENVIRONMENT: Production
-      ConnectionStrings__Default: "Server=sqlserver,1433;Database=${DB_NAME:-CargaMasivaDb};User Id=sa;Password=${MSSQL_SA_PASSWORD:?Defina MSSQL_SA_PASSWORD};Encrypt=True;TrustServerCertificate=True"
+      ConnectionStrings__Default: "Server=sqlserver,1433;Database=${DB_NAME:-CargaMasivaApp};User Id=sa;Password=${MSSQL_SA_PASSWORD:?Defina MSSQL_SA_PASSWORD};Encrypt=True;TrustServerCertificate=True"
     ports:
       - "8081:8080"
     volumes:
@@ -69,11 +86,11 @@ services:
       context: ./ms-carga-masiva
     image: carga-masiva-ms-carga-masiva:local
     depends_on:
-      ms-control:
-        condition: service_healthy
+      database-runner:
+        condition: service_completed_successfully
     environment:
       ASPNETCORE_ENVIRONMENT: Production
-      ConnectionStrings__Default: "Server=sqlserver,1433;Database=${DB_NAME:-CargaMasivaDb};User Id=sa;Password=${MSSQL_SA_PASSWORD:?Defina MSSQL_SA_PASSWORD};Encrypt=True;TrustServerCertificate=True"
+      ConnectionStrings__Default: "Server=sqlserver,1433;Database=${DB_NAME:-CargaMasivaApp};User Id=sa;Password=${MSSQL_SA_PASSWORD:?Defina MSSQL_SA_PASSWORD};Encrypt=True;TrustServerCertificate=True"
     ports:
       - "8083:8080"
     volumes:
@@ -86,11 +103,11 @@ services:
       context: ./ms-notificaciones
     image: carga-masiva-ms-notificaciones:local
     depends_on:
-      ms-control:
-        condition: service_healthy
+      database-runner:
+        condition: service_completed_successfully
     environment:
       ASPNETCORE_ENVIRONMENT: Production
-      ConnectionStrings__Default: "Server=sqlserver,1433;Database=${DB_NAME:-CargaMasivaDb};User Id=sa;Password=${MSSQL_SA_PASSWORD:?Defina MSSQL_SA_PASSWORD};Encrypt=True;TrustServerCertificate=True"
+      ConnectionStrings__Default: "Server=sqlserver,1433;Database=${DB_NAME:-CargaMasivaApp};User Id=sa;Password=${MSSQL_SA_PASSWORD:?Defina MSSQL_SA_PASSWORD};Encrypt=True;TrustServerCertificate=True"
     ports:
       - "8084:8080"
     volumes:

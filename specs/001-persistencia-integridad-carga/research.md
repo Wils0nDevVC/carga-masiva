@@ -1,5 +1,7 @@
 # Research: Persistencia y reglas de integridad para la carga masiva
 
+> **Nota (Feature 003, 2026-11-02)**: el runner de scripts de `database/` **vuelve a ser el mecanismo activo** de gestión del esquema (constitución v3.0.0; ver `specs/003-runner-sql-refactor-control/`), sustituyendo a las migraciones EF Core de `ms-control` que mencionan las notas de estrategia sustituida de este documento. Las reglas de negocio, el modelo de datos y los contratos de procedimientos no cambian. El texto original se conserva como historial.
+
 Procedencia: **Dec** = decisión del usuario; **Req** = README; **Prop** = propuesta de este plan (las aceptadas por el usuario se indican como Dec). El consumidor, las migraciones y Autenticación se implementan en sus features; aquí se diseña el soporte de persistencia.
 
 ## R-01 Una base compartida

@@ -1,5 +1,7 @@
 # Data Model: modelo EF Core de Control y esquema de la base compartida
 
+> **Nota (Feature 003, 2026-11-02)**: la gestión del esquema con EF Core Migrations desde `ms-control` descrita aquí (propiedad única de Control, aplicación al iniciar, guarda de base heredada, orden SQL Server → Control → resto y `/health` de Control «listo tras migrar») fue **sustituida** por scripts SQL versionados de `database/` aplicados por un runner ejecutado desde Docker Compose (constitución v3.0.0; ver `specs/003-runner-sql-refactor-control/`). Lo demás de esta feature (estructura de capas, `Response<T>`, manejo de errores, Serilog, Dockerfiles, `/health`) sigue vigente. El texto original se conserva como historial.
+
 El esquema, sus reglas y los procedimientos son los de la Feature 001 y de `referencias/V001__esquema_inicial.sql` y `V002__procedimientos.sql` (idénticos a los que verificó el runner anterior). Aquí solo se fija **cómo se mapean** en EF Core dentro de `ms-control`. No se cambian tablas, roles ni reglas. Confirmado: cada usuario tiene un solo rol mediante `Usuario.RolId`; no existe tabla intermedia. [Dec]
 
 ## Propietario y alcance
