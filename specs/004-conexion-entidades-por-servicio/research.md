@@ -1,0 +1,64 @@
+# Research: conexión, selección de tablas e ingeniería inversa por servicio
+
+Procedencia: `Dec` = decisión del usuario o de la constitución v3.0.0 (incluye el prompt del plan); `Spec` = spec 004; `Ref` = repositorio de referencia; `F001`/`F002`/`F003` = features anteriores; `Verif` = comprobado en esta etapa (solo lecturas; sin scaffolding, sin cambios de código ni de bases); `Plan` = decisión técnica de este plan.
+
+## Estado observado y consulta de las referencias (Verif)
+
+- **Código actual**: los cuatro `AppDbContext` son idénticos (sin entidades, `ApplyConfigurationsFromAssembly`); `AddInfrastructure` registra `AddDbContext<AppDbContext>(UseSqlServer(GetConnectionString("Default")))`, `IGenericRepository<>` (usa `Set<TEntity>()`) y `IUnitOfWork`. Compose inyecta `ConnectionStrings__Default` con `Database=${DB_NAME:-CargaMasivaApp}`; `.env` y `.env.example` usan `CargaMasivaApp`.
+- **Repositorio `Clean_architecture_base_net7`** (accesible): leído el listado completo y los archivos de persistencia (`DependencyInjection.cs`, `BaseDbContext.cs`, `TodoConfiguration.cs`, `TodoEntity.cs`, `BaseEntity.cs`, `IGenerateEntity.cs`, `.csproj` de Infrastructure, líneas de `Program.cs`, claves de `appsettings` sin secretos, comienzo de `IUnitOfWork.cs`). No leído: controladores, handlers ni el resto de `Application`/`Api`. Se adopta: entidad como clase en `Domain/Entities`; `IEntityTypeConfiguration<T>` por entidad (`ToTable`, `HasKey`) en `Infrastructure/Persistence/Configurations`; `ApplyConfigurationsFromAssembly`; conexión por `UseSqlServer(GetConnectionString(...))`. No se adopta: .NET 7/EF 7, `BaseEntity`/`IGenerateEntity`, un repositorio por entidad en el Unit of Work y operaciones masivas, AutoMapper, BulkExtensions, Reec, Newtonsoft, atributos `[Key]`, `Models/Database` ni la cadena en archivos.
+- **Repositorio `api_gateway_net7`** (accesible): listado completo de `src` (46 archivos); no contiene `DbContext`, entidades, repositorios ni persistencia (solo Ocelot, Serilog y servicios externos); no aporta a esta feature.
+- **SDK y herramienta**: .NET SDK 10.0.401; `dotnet ef dbcontext scaffold --help` confirma las opciones `--table`, `--no-onconfiguring`, `--no-pluralize`, `--namespace`, `--context-namespace`, `--output-dir`, `--context-dir`, `--context`, `--force`, `--use-database-names`, `--data-annotations`. El scaffold de una tabla ya se verificó en la Feature 003 (T034, `dbo.Rol`).
+
+## D-01 La conexión ya está cableada; esta feature solo la comprueba (Dec, Spec FR-001 a FR-004, Plan)
+
+**Decisión**: no se cambia el registro de conexión (`AddInfrastructure`, `ConnectionStrings__Default`, `DB_NAME`). Las entidades se incorporan al contexto existente por las configuraciones. **Por qué**: la fundación (F002) y el runner (F003) ya lo resuelven; cualquier cambio sería sobreingeniería. **Descartado**: copiar el nombre `DEV_STANDAR` o la cadena en `appsettings` de la referencia (secretos en archivos, prohibido por §10).
+
+## D-02 Selección de tablas por servicio, con fuentes (Dec, Spec)
+
+Se confirma la matriz de la spec. Fuentes: README §2 y §3 (funciones por microservicio), Constitución §2, §6, §8, F001 `research.md` R-09 (responsabilidades), F001 contrato de procedimientos (qué escribe la aplicación y qué los procedimientos) y F002 `data-model.md` (autenticación con `Usuario`, `Rol`).
+
+| Servicio | Tablas | Evidencia |
+|---|---|---|
+| ms-autenticacion | `Usuario`, `Rol` | README §2/§3 paso 0 (valida credenciales, JWT con claims); Constitución §6 (identidad propia, roles, usuarios iniciales y hash por ms-autenticacion); F001 contrato "Almacenamiento de identidad"; F002 `data-model.md` |
+| ms-control | `CargaArchivo`, `CargaEstadoHistorial`, `Incidencia` | README §3 paso 2 (guarda el registro Pendiente, auditoría de quién y cuándo); F001 R-09 ("Control crea la carga y el historial inicial"); Constitución §2 (seguimiento de cargas) y §6 (consulta de cargas e incidencias por rol) |
+| ms-carga-masiva | `CargaArchivo`, `CargaPeriodo`, `Producto`, `Incidencia` | README §3 paso 3 (duplicidad por periodo y por código, fallidos); F001 contrato: la transacción por grupo inserta `Producto` e `Incidencia` y pasa `CargaPeriodo` a Completado; la aplicación cuenta intentos (`CargaArchivo`) |
+| ms-notificaciones | `Incidencia` | Constitución §8 y F001 R-09 (registra la incidencia si falla el correo; envía y marca Notificado) |
+
+**Diferidos por indicación del plan** (no se incorporan hasta que sus contratos o casos de uso justifiquen su acceso): `Usuario` en Control (depende de los claims del JWT de la feature de Autenticación; `CargaArchivo.UsuarioId` se mantiene como columna de clave); `Producto` y `CargaPeriodo` en Control (el README no asigna el servicio que sirve el contenido del archivo ni el detalle por periodo).
+
+## D-03 Notificaciones: acceso necesario para marcar Notificado (Dec, Plan)
+
+**Responsabilidad aprobada**: "Notificaciones envía el correo con MailKit y marca Notificado tras el envío exitoso" [Constitución §8; README §2 y §3 paso 4]. **Mecanismo ya definido**: los cambios de estado los aplica `usp_CambiarEstadoCarga(@CargaId, @NuevoEstado, @PeriodoFallido, @Cambiado OUT)`, que valida la matriz, actualiza `CargaArchivo.Estado`/`FechaFin`, inserta el historial y es idempotente (repetición ⇒ `@Cambiado = 0`) [F001 contrato; `database/scripts/V002`, líneas 87 a 150]; "no hace" enviar correos ni registrar incidencias técnicas. El mensaje de la cola ya trae `idCarga`, `usuario` y `fechaFin` [README §3]. **Resultado**: el acceso de Notificaciones a `CargaArchivo` es **a través del procedimiento**, que recibe el identificador; no lee ni escribe la tabla con EF. Por tanto **no se mapea `CargaArchivo` en ms-notificaciones**. Solo se mapea `Incidencia`, que sí inserta la aplicación (incidencia `ErrorNotificacion` [F001 `data-model.md` y R-09; Constitución §8]). `Incidencia.CargaId` y `Incidencia.CargaPeriodoId` quedan como columnas de clave sin entidad relacionada. **No se inventa** el contenido del correo ni la recuperación de notificaciones no publicadas (pendientes de la constitución); si esos casos de uso exigieran leer la carga, se decidirá en su feature. La invocación del procedimiento desde EF corresponde a la feature funcional de Notificaciones; esta feature no la implementa.
+
+## D-04 Ingeniería inversa por servicio: una herramienta, cuatro invocaciones (Dec, Plan, Verif)
+
+**Decisión**: se ejecuta manualmente desde `ms-control/` con su herramienta local `dotnet-ef` 10.0.14 y el paquete `Design` ya presentes, una vez por servicio, con su lista de `--table`, `--namespace Acity.Domain.Entities`, `--context-namespace Acity.Infrastructure.Persistence`, `--no-onconfiguring`, `--no-pluralize`, `--context ScaffoldContext` y salida (`--output-dir`, `--context-dir`) a una carpeta temporal **fuera del repositorio** por servicio. Los comandos exactos están en `contracts/ingenieria-inversa-y-comprobacion.md`. **Por qué**: el resultado del scaffold depende de la base y de las opciones, no del proyecto destino (el de `dbo.Rol` se verificó en F003 T034); así los otros tres servicios no reciben `Design` ni herramienta (FR-020) y el código generado nunca toca el repositorio hasta la integración manual. **Descartado**: añadir `Design` y `dotnet-ef` a cada servicio (paquetes y herramientas nuevos); `--force` contra carpetas del repositorio (sobrescribe personalizaciones). **Por comprobar al ejecutarlo** (no se ejecutó): que con tablas limitadas el generador omita las claves foráneas hacia tablas no incluidas y genere solo la columna.
+
+## D-05 Integración manual sin sobrescribir y qué se conserva (Dec, Plan)
+
+Reglas (detalle en el contrato): copiar solo las entidades del servicio; **sin propiedades de navegación** (F002 `data-model.md` y la entidad de la referencia no las usan); mapeo por entidad en `Configurations`, no en el contexto; **sin `DbSet`** en el contexto (el repositorio genérico usa `Set<T>()`); relaciones solo entre entidades mapeadas del mismo servicio, declaradas por clave (`HasOne<T>().WithMany().HasForeignKey(...)`) sin nombres de restricción; claves foráneas hacia tablas no mapeadas, solo como columna; **se omiten** los elementos que solo replican el DDL (nombres de restricciones, `HasIndex`, filtros, valores por defecto SQL); **se conservan** `ToTable`, `HasKey`, longitud, `IsUnicode(false)` en `varchar`, `IsFixedLength` en `char`, precisión del `decimal`, obligatoriedad, `ValueGeneratedNever` en `Rol.Id` y la collation de `CodigoProducto` (D-07). **Todas las columnas de cada tabla mapeada**: la entidad representa la fila de la tabla aprobada; recortar columnas exigiría conocer el uso concreto de cada servicio, que no está definido, y omitir una columna `NOT NULL` rompería las inserciones. Esto precisa FR-010 de la spec ("solo con las columnas y relaciones que ese servicio usa" → todas las columnas de las tablas que el servicio mapea; relaciones solo hacia entidades mapeadas). Se compara con los archivos existentes antes de copiar; si existe un archivo, se fusiona a mano.
+
+## D-06 Comprobación manual de conexión y lectura (Dec, Plan, Verif)
+
+**Decisión**: para cada servicio, un archivo `.cs` ejecutable con `dotnet run` (aplicación de archivo único de .NET 10), **fuera del repositorio**, con `#:sdk Microsoft.NET.Sdk.Web`, `#:project` hacia el `Acity.Infrastructure.csproj` del servicio y `#:property PublishAot=false` (sin esta propiedad el modelo falla: "Model building is not supported when publishing with NativeAOT"). Usa `ConnectionStrings__Default` del entorno, llama a `AddInfrastructure`, resuelve `AppDbContext` y: (1) `CanConnectAsync`; (2) `SELECT DB_NAME()` debe devolver `CargaMasivaApp`; (3) para cada entidad del servicio, lectura con LINQ de solo lectura (`Set<T>().AsNoTracking().Take(1)` y `Count()`); (4) volcado del modelo (tabla, columna, tipo de almacén, nulabilidad, longitud, clave, generación de valores y claves foráneas) para contrastarlo con el catálogo. **Verificado en esta etapa** con el `AppDbContext` actual de Control (sin entidades): `CanConnect=True`, `DB_NAME=CargaMasivaApp`, 0 entidades en el modelo; solo se ejecutó `SELECT DB_NAME()` y no se modificó nada. **Por qué**: usa el `DbContext` real y el registro real de cada servicio, sin endpoints ni cambios en `/health` ni en el repositorio. **Descartado**: endpoint o health con base de datos (prohibido); proyecto de pruebas (prohibido); solo `sqlcmd` (no pasa por el `DbContext`); `dotnet ef dbcontext info` (no abre la conexión).
+
+## D-07 Collation de `CodigoProducto` y comparación LINQ (Dec, Spec FR-015, Plan)
+
+La columna tiene `Latin1_General_100_CI_AS_WS`; la igualdad SQL usa la collation de la columna (sin distinguir mayúsculas de minúsculas, distinguiendo acentos). El mapeo conserva la collation que genera el scaffold (refleja la columna) y no la sobrescribe. **Por comprobar** (no se asume): que `Where(p => p.CodigoProducto == "p0117")` encuentre "P0117" y que "á" no iguale "a", sobre una base **temporal** creada por el runner con filas insertadas por SQL (no por EF); si `UseCollation` alterara la consulta o fallara, se documenta el error y se quita esa configuración del mapeo (la columna conserva su collation). La normalización `Trim()` de los códigos corresponde a las features funcionales.
+
+## D-08 Qué no cambia (Dec)
+
+Esquema y `database/`, runner y orden en Compose, `AppDbContext`, `AddInfrastructure`, `Response<T>`, manejo de errores, Serilog, `/health` (solo indica que el host arrancó), Dockerfiles, `.csproj` y paquetes, cuenta `sa` de la fundación, constitución y README. Las bases `CargaMasiva` y `CargaMasivaDb` y los volúmenes no se tocan.
+
+## D-09 Coherencia con la spec (Verif)
+
+La matriz del plan es la de la spec (10 mapeos). Ajustes al leer el plan con la spec: (a) pendiente "`CargaArchivo` en Notificaciones" resuelto (D-03: no se mapea); (b) pendiente de verificación de conexión resuelto (D-06); (c) `Usuario` y `Producto`/`CargaPeriodo` en Control, diferidos por indicación; (d) FR-010 precisado (D-05). No hay contradicciones bloqueantes.
+
+## Abiertos (se resuelven en la implementación; no se asumen)
+
+1. Que el scaffold limitado por tablas omita las claves foráneas hacia tablas no incluidas.
+2. Que `UseCollation` en `CodigoProducto` no altere las consultas LINQ (D-07).
+3. Conexión y lectura reales por servicio con el `.cs` de comprobación (solo se verificó con el contexto sin entidades).
+4. Correspondencia mapeo ↔ catálogo por entidad con 0 diferencias.
+5. Compilación sin advertencias, `/health` = 200 y esquema y registro sin cambios tras arrancar los cuatro servicios.
+6. Validación solo en este equipo (motor amd64 emulado sin soporte de Microsoft); equipo de evaluación sin validar.

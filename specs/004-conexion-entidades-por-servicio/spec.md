@@ -154,7 +154,7 @@ Las entidades y los mapeos siguen la organización del repositorio de referencia
 - **FR-007**: Cada servicio MUST incorporar únicamente las entidades indicadas en la tabla "Distribución de entidades por microservicio" de esta spec. [Decisión]
 - **FR-008**: MUST NOT concentrarse el modelo completo en Control ni duplicarse las siete entidades en todos los servicios por uniformidad. [Decisión] [Constitución §6]
 - **FR-009**: Cada entidad incorporada MUST tener una justificación con la función del servicio y su procedencia; la selección MUST NOT apoyarse en necesidades futuras supuestas. [Decisión]
-- **FR-010**: Una tabla usada por varios servicios MUST mapearse de forma independiente en cada uno (sin clases compartidas entre servicios) y solo con las columnas y relaciones que ese servicio usa. [Feature 002 FR-004] [Decisión]
+- **FR-010**: Una tabla usada por varios servicios MUST mapearse de forma independiente en cada uno (sin clases compartidas entre servicios); cada entidad mapea todas las columnas de su tabla y solo las relaciones hacia entidades que ese servicio también mapea. [Feature 002 FR-004] [Decisión] *(Precisado en el plan, D-05: sustituye "solo con las columnas que ese servicio usa".)*
 - **FR-011**: MUST NOT incorporarse entidades para los procedimientos almacenados, ni para `SchemaMigraciones`. [Decisión] [Feature 003]
 
 **Correspondencia con el esquema**
@@ -211,9 +211,8 @@ Las entidades y los mapeos siguen la organización del repositorio de referencia
 
 ## Asuntos pendientes (no bloquean esta spec; no son requisitos aprobados)
 
-- **Control y `Usuario`**: si Control necesitará leer `Usuario` depende de los claims del JWT (identificador numérico frente a correo), que define la feature de Autenticación. Hoy se excluye; si hace falta, se añade con el procedimiento de ingeniería inversa en la feature que lo apruebe.
-- **Contenido del archivo y detalle por periodo**: el README menciona consultar el contenido del archivo subido y ver el detalle del estado, pero no asigna el servicio ni las tablas. `Producto` y `CargaPeriodo` se mapean solo en Carga Masiva; su incorporación a Control (o a otro servicio) se decide en la feature que apruebe esas consultas.
-- **Notificaciones y `CargaArchivo`**: se excluye porque los datos del correo viajan en el mensaje y el estado lo aplica el procedimiento; el contenido exacto del correo y la recuperación de notificaciones no publicadas (pendientes en la constitución) pueden exigirlo, y se decidirá entonces.
-- **Mecanismo de verificación de la conexión**: lo define el plan sin añadir endpoints (FR-005).
+- **Diferidos por decisión del plan** (se añadirán, con el procedimiento de ingeniería inversa, cuando sus contratos o casos de uso justifiquen su acceso): `Usuario` en Control (depende de los claims del JWT de la feature de Autenticación) y `Producto`/`CargaPeriodo` en Control (el README no asigna el servicio que sirve el contenido del archivo ni el detalle por periodo).
+- ~~**Notificaciones y `CargaArchivo`**~~: resuelto en el plan (D-03): no se mapea; marcar Notificado se hace con el procedimiento `usp_CambiarEstadoCarga`, que recibe el identificador de la carga. El contenido del correo y la recuperación de notificaciones no publicadas siguen pendientes en la constitución y no se asumen.
+- ~~**Mecanismo de verificación de la conexión**~~: resuelto en el plan (D-06): archivo `.cs` fuera del repositorio que usa el `DbContext` de cada servicio, sin endpoints ni cambios en `/health`.
 - **Verificación de Docker y SQL Server**: motor amd64 emulado sin soporte oficial de Microsoft; solo se comprobará en este equipo; no se declara validado en el equipo de evaluación.
 - Del repositorio de referencia no se leyeron controladores, handlers ni el resto de `Application`/`Api` (ver "Contexto").
