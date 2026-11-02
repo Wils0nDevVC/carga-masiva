@@ -31,6 +31,7 @@ Sin columnas `MAX` ni binarias. Las tres columnas de texto con longitud propuest
 
 ## Diferencias físicas aceptadas respecto de V001
 - Las unicidades `UQ_Rol_Nombre`, `UQ_Usuario_Email` y `UQ_CargaPeriodo_Carga_Periodo` se materializan como **índices únicos** (EF Core no crea restricciones UNIQUE); la garantía es la misma. Un choque produce el error 2601 en lugar del 2627; `usp_ReservarPeriodo` ya trata ambos números y comprueba el nombre. [Plan]
+- **Confirmado en la implementación** (comparación de catálogo contra la base anterior, `quickstart.md` escenario 4): las únicas diferencias con `V001`/`V002` son estas tres unicidades (índice único en lugar de restricción), el historial `__EFMigrationsHistory` en lugar de `SchemaMigraciones` y el comentario inicial de cada procedimiento (el texto desde `CREATE PROCEDURE` es idéntico, mismo hash). Para lograrlo se desactiva la convención de índices automáticos sobre claves foráneas (solo en Control) y se nombra la restricción por defecto `DF_CargaArchivo_IntentosProceso`.
 - Sin cambios en los datos base ni en las reglas de los procedimientos.
 
 ## Procedimientos

@@ -1,7 +1,15 @@
 name: carga-masiva
 
-# El esquema lo aplicarán migraciones EF Core desde ms-control al iniciar (pendiente de esa feature);
-# ms-control aún no está en este archivo. El runner de database/ se retiró de Compose.
+# El esquema lo crea ms-control con migraciones EF Core al iniciar (único propietario); los demás servicios
+# arrancan solo cuando ms-control está healthy. El runner de database/ se retiró de Compose.
+# Si MSSQL_SA_PASSWORD está exportada en el shell, tiene prioridad sobre el valor de .env.
+x-app-healthcheck: &app-healthcheck
+  test: ["CMD", "bash", "-c", "exec 3<>/dev/tcp/127.0.0.1/8080 && printf 'GET /health HTTP/1.0\\r\\nHost: localhost\\r\\n\\r\\n' >&3 && head -n1 <&3 | grep -q ' 200 '"]
+  interval: 5s
+  timeout: 5s
+  retries: 30
+  start_period: 20s
+
 services:
   sqlserver:
     image: mcr.microsoft.com/mssql/server:2022-CU27-ubuntu-22.04
@@ -22,5 +30,77 @@ services:
       retries: 30
       start_period: 40s
 
+  ms-control:
+    build:
+      context: ./ms-control
+    image: carga-masiva-ms-control:local
+    depends_on:
+      sqlserver:
+        condition: service_healthy
+    environment:
+      ASPNETCORE_ENVIRONMENT: Production
+      ConnectionStrings__Default: "Server=sqlserver,1433;Database=${DB_NAME:-CargaMasivaDb};User Id=sa;Password=${MSSQL_SA_PASSWORD:?Defina MSSQL_SA_PASSWORD};Encrypt=True;TrustServerCertificate=True"
+    ports:
+      - "8082:8080"
+    volumes:
+      - logs-control:/app/logs
+    healthcheck: *app-healthcheck
+    restart: "no"
+
+  ms-autenticacion:
+    build:
+      context: ./ms-autenticacion
+    image: carga-masiva-ms-autenticacion:local
+    depends_on:
+      ms-control:
+        condition: service_healthy
+    environment:
+      ASPNETCORE_ENVIRONMENT: Production
+      ConnectionStrings__Default: "Server=sqlserver,1433;Database=${DB_NAME:-CargaMasivaDb};User Id=sa;Password=${MSSQL_SA_PASSWORD:?Defina MSSQL_SA_PASSWORD};Encrypt=True;TrustServerCertificate=True"
+    ports:
+      - "8081:8080"
+    volumes:
+      - logs-autenticacion:/app/logs
+    healthcheck: *app-healthcheck
+    restart: "no"
+
+  ms-carga-masiva:
+    build:
+      context: ./ms-carga-masiva
+    image: carga-masiva-ms-carga-masiva:local
+    depends_on:
+      ms-control:
+        condition: service_healthy
+    environment:
+      ASPNETCORE_ENVIRONMENT: Production
+      ConnectionStrings__Default: "Server=sqlserver,1433;Database=${DB_NAME:-CargaMasivaDb};User Id=sa;Password=${MSSQL_SA_PASSWORD:?Defina MSSQL_SA_PASSWORD};Encrypt=True;TrustServerCertificate=True"
+    ports:
+      - "8083:8080"
+    volumes:
+      - logs-carga-masiva:/app/logs
+    healthcheck: *app-healthcheck
+    restart: "no"
+
+  ms-notificaciones:
+    build:
+      context: ./ms-notificaciones
+    image: carga-masiva-ms-notificaciones:local
+    depends_on:
+      ms-control:
+        condition: service_healthy
+    environment:
+      ASPNETCORE_ENVIRONMENT: Production
+      ConnectionStrings__Default: "Server=sqlserver,1433;Database=${DB_NAME:-CargaMasivaDb};User Id=sa;Password=${MSSQL_SA_PASSWORD:?Defina MSSQL_SA_PASSWORD};Encrypt=True;TrustServerCertificate=True"
+    ports:
+      - "8084:8080"
+    volumes:
+      - logs-notificaciones:/app/logs
+    healthcheck: *app-healthcheck
+    restart: "no"
+
 volumes:
   sqlserver-data:
+  logs-control:
+  logs-autenticacion:
+  logs-carga-masiva:
+  logs-notificaciones:

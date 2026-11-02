@@ -1,0 +1,7 @@
+<Solution>
+  <Project Path="Acity.Api/Acity.Api.csproj" />
+  <Project Path="Acity.Application/Acity.Application.csproj" />
+  <Project Path="Acity.Common/Acity.Common.csproj" />
+  <Project Path="Acity.Domain/Acity.Domain.csproj" />
+  <Project Path="Acity.Infrastructure/Acity.Infrastructure.csproj" />
+</Solution>
