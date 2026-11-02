@@ -1,50 +1,231 @@
-# [PROJECT_NAME] Constitution
-<!-- Example: Spec Constitution, TaskFlow Constitution, etc. -->
+<!--
+Sync Impact Report
+- Versión: 1.1.0 → 1.1.1 (PATCH: se fijan los nombres de directorios; sin cambio de reglas)
+- Principios modificados: §2 (directorios confirmados y su contenido); "Pendientes" (retirado
+  el pendiente de nombres de directorios)
+- Cambios de la versión 1.1.0 (referencia): estado Fallido, atomicidad por periodo, identidad y
+  roles, valores inválidos.
+- Principios modificados: §6 (identidad propia, roles, hash, usuarios iniciales), §7 (periodo
+  válido AAAA-MM, valores inválidos, atomicidad por periodo, disponibilidad del periodo),
+  §8 (estado Fallido, significado de estados, fallo de correo), §9 (idempotencia de reintentos)
+- Secciones añadidas: ninguna; "Pendientes y no autorizado" actualizada (resueltos retirados)
+- Secciones eliminadas: ninguna
+- Diferidos: fecha de ratificación (pendiente de aprobación del usuario).
+- Procedencia: [README §n] = sección del README del examen (referencias/README.md);
+  [Decisión] = decisión explícita del prompt de constitución del usuario.
+-->
+# carga-masiva Constitution
 
-## Core Principles
+## Principios rectores del proyecto
 
-### [PRINCIPLE_1_NAME]
-<!-- Example: I. Library-First -->
-[PRINCIPLE_1_DESCRIPTION]
-<!-- Example: Every feature starts as a standalone library; Libraries must be self-contained, independently testable, documented; Clear purpose required - no organizational-only libraries -->
+### 1. Fuentes y control del alcance
+- El README establece los requisitos del examen; las decisiones del usuario aclaran sus
+  ambigüedades y delimitan la solución. [README] [Decisión]
+- Todo artefacto MUST distinguir: requisito del README, decisión del usuario y asunto pendiente.
+- No se añaden funcionalidades, paquetes, patrones, entidades, validaciones ni endpoints por
+  costumbre. Una propuesta no equivale a aprobación. [Decisión]
+- Los repositorios de referencia (Clean Architecture y API Gateway) solo orientan la estructura;
+  no se copian íntegramente. [Decisión]
+- Ante un conflicto no resuelto, MUST documentarse y consultarse al usuario antes de desarrollar
+  contenido dependiente. Los pendientes permanecen pendientes. [Decisión]
 
-### [PRINCIPLE_2_NAME]
-<!-- Example: II. CLI Interface -->
-[PRINCIPLE_2_DESCRIPTION]
-<!-- Example: Every library exposes functionality via CLI; Text in/out protocol: stdin/args → stdout, errors → stderr; Support JSON + human-readable formats -->
+### 2. Organización del proyecto
+- Monorepo bajo `carga-masiva/`, con un único Git y un único Spec Kit en la raíz. [Decisión]
+- Una constitución común; especificaciones, planes y tareas acotados por componente. [Decisión]
+- Directorios contenedores en la raíz: `api-gateway/` (API Gateway con Ocelot), `database/`
+  (scripts SQL versionados), `ms-autenticacion/` (autenticación y emisión de JWT),
+  `ms-control/` (recepción de archivos y seguimiento de cargas), `ms-carga-masiva/`
+  (procesamiento masivo del Excel) y `ms-notificaciones/` (envío de correos). [Decisión]
+- Estos nombres identifican los directorios contenedores; los proyectos internos mantienen los
+  nombres del principio 4. Las capas se crean solo cuando un plan lo requiera. [Decisión]
+- La base de datos participa en el mismo SDD y se modela inicialmente de forma integral.
+  [Decisión]
+- MUST NOT inicializarse Git ni Spec Kit dentro de cada componente. [Decisión]
 
-### [PRINCIPLE_3_NAME]
-<!-- Example: III. Test-First (NON-NEGOTIABLE) -->
-[PRINCIPLE_3_DESCRIPTION]
-<!-- Example: TDD mandatory: Tests written → User approved → Tests fail → Then implement; Red-Green-Refactor cycle strictly enforced -->
+### 3. Arquitectura y plataforma
+- .NET 10 para los cuatro microservicios y el Gateway; esta decisión resuelve las menciones a
+  .NET 8/9 del README (§4) y del diagrama. [README §2 y §4] [Decisión]
+- Clean Architecture, SOLID, separación de responsabilidades y CQRS con MediatR. [README §4]
+  [Decisión]
+- MediatR fijado en 12.5.0 (Apache-2.0); MUST NOT actualizarse automáticamente a una versión con
+  otro esquema de licencia. [Decisión]
+- Repository y Unit of Work según la referencia, implementando solo las operaciones necesarias.
+  [Decisión]
+- Entradas HTTP con ASP.NET Core MVC y controladores. No se crean endpoints sin un requisito.
+  [Decisión]
+- El host (Api o Worker) de los consumidores de colas queda pendiente del plan; los proyectos
+  HTTP usan `Acity.Api`. [Decisión]
+- Los ejecutables de cada microservicio son independientes. [README §4] [Decisión]
 
-### [PRINCIPLE_4_NAME]
-<!-- Example: IV. Integration Testing -->
-[PRINCIPLE_4_DESCRIPTION]
-<!-- Example: Focus areas requiring integration tests: New library contract tests, Contract changes, Inter-service communication, Shared schemas -->
+### 4. Capas y convenciones
+- Proyectos por microservicio: Acity.Api (proyectos con entradas HTTP), Acity.Application,
+  Acity.Domain, Acity.Infrastructure y Acity.Common. El nombre del ejecutable de los consumidores
+  se define al resolver Api/Worker en el plan. MUST NOT usarse Servicio.Api, Servicio.Domain ni
+  equivalentes. [Decisión]
+- No se crean capas ni carpetas vacías para aparentar arquitectura completa. [Decisión]
+- Application: casos de uso, Commands/Queries, handlers, DTOs, validadores, interfaces y mapeos.
+  Domain: entidades y reglas de dominio. Infrastructure: persistencia e integraciones externas.
+  [Decisión]
+- DTOs de solicitud y respuesta como `record`; entidades e implementaciones como clases; contratos
+  como interfaces cuando correspondan. [Decisión]
+- Mapeos manuales mínimos: sin AutoMapper ni motor genérico de mapeo. [Decisión]
+- FluentValidation para las validaciones autorizadas. MUST NOT inferirse límites, campos
+  obligatorios ni reglas funcionales a partir de capacidades de una biblioteca. [Decisión]
 
-### [PRINCIPLE_5_NAME]
-<!-- Example: V. Observability, VI. Versioning & Breaking Changes, VII. Simplicity -->
-[PRINCIPLE_5_DESCRIPTION]
-<!-- Example: Text I/O ensures debuggability; Structured logging required; Or: MAJOR.MINOR.BUILD format; Or: Start simple, YAGNI principles -->
+### 5. Contrato de respuesta y errores
+- `Response<T>` como `record` genérico en `Acity.Common/Helpers`, con los campos Data, IsSuccess,
+  Message, Code y Errors (colección de mensajes opcional). [Decisión]
+- `Code` representa el estado HTTP y MUST coincidir con el estado HTTP real. [Decisión]
+- El tratamiento de Data sin resultado y la serialización se definen en el plan. [Decisión]
+- Manejo global de excepciones, sin Reec. [README §4] [Decisión]
+- MUST NOT existir dos formatos de error incompatibles ni campos añadidos al contrato sin
+  autorización. [Decisión]
 
-## [SECTION_2_NAME]
-<!-- Example: Additional Constraints, Security Requirements, Performance Standards, etc. -->
+### 6. Persistencia
+- SQL Server; EF Core y LINQ en Infrastructure; sin Dapper. [README §4 y §5] [Decisión]
+- Esquema gestionado con scripts SQL versionados en `database/`, sin EF Core Migrations.
+  [Decisión]
+- Modelado inicial integral y un script inicial que materialice el esquema aprobado. [Decisión]
+- Aplicación automática de scripts pendientes con registro de los aplicados para no repetirlos
+  (migraciones automáticas). [README §4] [Decisión]
+- Un único responsable aplica los cambios de esquema. [Decisión]
+- Procedimientos almacenados conforme al README; sus responsabilidades se delimitan en el plan.
+  [README §4] [Decisión]
+- Identidad propia persistida en SQL Server; sin proveedores externos de identidad. Se persisten
+  usuarios, roles y su asociación, sin motor genérico de permisos. [Decisión]
+- Roles: Administrador (carga archivos; consulta todas las cargas y sus incidencias) y Operador
+  (carga archivos; consulta solo sus propias cargas e incidencias). [Decisión]
+- Las contraseñas se almacenan con hash apropiado para contraseñas, nunca en texto plano ni con
+  cifrado reversible; el mecanismo lo define el plan. [Decisión]
+- Un usuario inicial por rol para la demostración, con credenciales suministradas por
+  configuración externa; MUST NOT haber contraseñas en scripts versionados. [Decisión]
+- En la etapa de constitución MUST NOT crearse tablas, columnas, índices ni procedimientos
+  definitivos. [Decisión]
 
-[SECTION_2_CONTENT]
-<!-- Example: Technology stack requirements, compliance standards, deployment policies, etc. -->
+### 7. Reglas funcionales de carga
+- Los campos del Excel son Periodo, CodigoProducto, NombreProducto y Precio. [Decisión]
+- Un archivo puede contener varios periodos; sus filas se agrupan internamente por periodo.
+  [Decisión]
+- Periodo con carga previa Cargado, Finalizado o Notificado: se rechaza el grupo. Con carga previa
+  Pendiente o En proceso: se bloquea el grupo. [README §3] [Decisión]
+- El rechazo o bloqueo de un grupo no detiene los demás periodos del archivo. La carga actual
+  MUST distinguirse de las previas para no rechazarse contra sí misma. [Decisión]
+- Tras validar el periodo se evalúa duplicidad global por CodigoProducto: si el código ya existe,
+  incluso en otro periodo, la fila se omite y se reporta como Existente. [README §3] [Decisión]
+- MUST NOT usarse Periodo + CodigoProducto como criterio de duplicidad ni llave única compuesta.
+  [Decisión]
+- Entre duplicados elegibles del archivo se conserva la primera fila aceptada en el orden
+  original; las posteriores no actualizan el precio. [Decisión]
+- Filas completamente vacías se omiten. [README §3]
+- Falta Periodo o CodigoProducto: se omite la fila y se registra el motivo (excepción autorizada
+  a los valores por defecto). Falta NombreProducto: “Producto ” + CodigoProducto. Falta Precio: 0.
+  [README §3] [Decisión]
+- Ausente ≠ inválido: Precio no numérico o Periodo inválido omiten la fila y registran el motivo;
+  no se aplican valores por defecto para ocultar datos inválidos. Periodo válido: AAAA-MM (año de
+  cuatro dígitos, mes 01–12). No se inventan restricciones sobre precios negativos, patrones de
+  CodigoProducto ni longitudes. [Decisión]
+- Ante una validación de periodo fallida termina el procesamiento de ese grupo, no el de los
+  demás. [README §3] [Decisión]
+- Cada grupo de periodo se persiste de forma transaccional: productos aceptados e incidencias de
+  negocio se confirman juntos; un fallo técnico antes de confirmar revierte el grupo y después se
+  registra de forma persistente la incidencia técnica. Los periodos completados se conservan
+  aunque otro falle. El plan define la implementación y el mínimo mecanismo de concurrencia, sin
+  infraestructura adicional innecesaria. [Decisión]
+- La disponibilidad de un periodo MUST NOT deducirse solo del estado general del archivo: el
+  resultado de cada periodo se distingue del estado de la carga. Un periodo completado impide
+  nuevas cargas aunque el archivo termine Fallido; un periodo revertido puede procesarse en una
+  nueva carga al terminar la ejecución anterior; grupos rechazados o bloqueados no reservan el
+  periodo; un fallo no bloquea indefinidamente un periodo no completado. [Decisión]
+- MUST NOT deducirse límites de volumen ni validaciones nuevas del archivo de ejemplo.
+- Detalle y criterios de aceptación corresponden a las especificaciones.
 
-## [SECTION_3_NAME]
-<!-- Example: Development Workflow, Review Process, Quality Gates, etc. -->
+### 8. Seguimiento y notificaciones
+- `idCarga` identifica la carga del archivo; se conserva la asociación de los periodos aceptados
+  con su carga. [README §3] [Decisión]
+- Se registra quién subió el archivo y cuándo. Los fallidos e incidencias se almacenan de forma
+  persistente, vinculados a la carga; el plan define las tablas necesarias para auditoría y
+  trazabilidad. [README §3] [Decisión]
+- Las incidencias por fila o periodo MUST diferenciarse de los estados del archivo. Estados del
+  archivo: Pendiente, En proceso, Cargado, Finalizado, Notificado [README §2] y Fallido
+  [Decisión]; no se inventan otros. Recorrido satisfactorio: Pendiente → En proceso → Cargado →
+  Finalizado → Notificado. [Decisión]
+- Significado: Pendiente = registrado, esperando procesamiento; En proceso = lectura, validación
+  y procesamiento; Cargado = productos aceptados e incidencias persistidos, resueltos todos los
+  grupos; Finalizado = procesamiento completo y resultado preparado para notificar; Notificado =
+  correo enviado satisfactoriamente; Fallido = procesamiento interrumpido por error técnico tras
+  agotar los reintentos permitidos. Una omisión o rechazo de negocio no implica Fallido.
+  [Decisión]
+- Si falla solo el envío del correo, la carga conserva Finalizado y se registra la incidencia; la
+  notificación se reintenta sin reprocesar el archivo. [Decisión]
+- La notificación se publica al finalizar el procesamiento del archivo, aunque existan omisiones
+  de negocio. [README §3] [Decisión]
+- Notificaciones envía el correo con MailKit y marca Notificado tras el envío exitoso.
+  [README §2 y §3] [Decisión]
+- El número de tablas no está fijado: el plan justifica el modelo mínimo. [README §5] [Decisión]
 
-[SECTION_3_CONTENT]
-<!-- Example: Code review requirements, testing gates, deployment approval process, etc. -->
+### 9. Gateway, mensajería e integraciones
+- Gateway mínimo con Ocelot en .NET 10: reenvío de solicitudes y validación del JWT emitido por
+  Authentication. [README §2] [Decisión]
+- Control valida el permiso para ejecutar cargas masivas. [README §3]
+- Rate Limiting obligatorio. [README §4]
+- Polly para reintentos y Circuit Breaker; el plan define operaciones, errores elegibles y
+  parámetros, evitando duplicar efectos de escritura. Los reintentos son limitados; reintentar o
+  reentregar un mensaje no duplica productos, no reprocesa periodos completados ni reporta como
+  Existente un producto ya confirmado por la misma carga. Sin interfaz ni endpoint de reintentos.
+  [README §4] [Decisión]
+- RabbitMQ con las colas `carga_masiva` y `notificaciones`. [README §2 y §4] [Decisión]
+- SeaweedFS almacena los Excel. [README §2] [Decisión]
+- MailKit configurable por variables de entorno. [README §4]
+- MUST NOT trasladarse del Gateway de referencia: Happy, Code/Header/IdentityPool, Reec, AWS,
+  SignalR, WebSockets ni agregación de Swagger. No se incluyen Emissary ni Kubernetes. [Decisión]
+
+### 10. Logging y recursos
+- Logging estructurado con Serilog y archivos `.log` vía Serilog.Sinks.File. [README §4]
+  [Decisión]
+- Rotación y retención se definen en el plan. Archivos separados por servicio, conservados
+  mediante volúmenes de Docker. [Decisión]
+- Se registran propiedades estructuradas relevantes y excepciones; MUST NOT registrarse
+  contraseñas, tokens ni el contenido completo del Excel. [Decisión]
+- Los logs técnicos no sustituyen la auditoría ni la trazabilidad funcional. [Decisión]
+- `using`/`await using` para recursos desechables creados y poseídos por el código; no se liberan
+  manualmente servicios cuyo ciclo de vida administra la inyección de dependencias. No se afirma
+  que `using` libere toda la memoria ni garantice ausencia de fugas. [Decisión]
+
+### 11. Docker, cliente y pruebas
+- Solución funcional y dockerizada; un Dockerfile por ejecutable propio (no por biblioteca de
+  capas). [README §1 y §4] [Decisión]
+- Un Docker Compose en la raíz levanta la solución y sus dependencias. RabbitMQ y SeaweedFS pueden
+  declararse directo en Compose; solo se crean directorios si requieren archivos de
+  configuración. [README §4] [Decisión]
+- Postman es el cliente y entregable actual. React queda pendiente de confirmación: no se
+  implementa ni se añaden dependencias anticipadas. [README §2 y §6] [Decisión]
+- Por decisión del usuario NO se crean proyectos ni suites de tests automatizados; esto no elimina
+  la revisión documental ni la comprobación manual del flujo funcional. [Decisión]
+
+### 12. Dependencias y simplicidad
+- ClosedXML es la única biblioteca elegida para Excel. [Decisión]
+- Excluidos: AutoMapper, EPPlus, Reec, Cronos, CloudWatch. BulkExtensions no está aprobado.
+  [Decisión]
+- No se añaden caché, CI/CD, frameworks de mensajería adicionales ni patrones no autorizados.
+  No añadir plataformas ni servicios adicionales de observabilidad; se mantiene el logging
+  aprobado con Serilog. [Decisión]
+- Para paquetes sin versión fijada, el plan verifica compatibilidad y licencia; no se copian
+  versiones antiguas de los repositorios. [Decisión]
+
+## Pendientes y no autorizado
+Permanecen pendientes (no decididos): host Api/Worker de los
+consumidores; tratamiento de Data sin resultado y serialización de `Response<T>`; rotación y
+retención de logs; cantidad, intervalos y errores reintentables de Polly; mecanismo de hash de
+contraseñas y de protección ante concurrencia; límites de tamaño de archivo; contenido exacto del
+correo; React; modelo mínimo de tablas y responsabilidades de los procedimientos almacenados.
+Refresh tokens es opcional en el README y no está decidido.
+No se adoptan las convenciones de idioma, commits ni versionado de endpoints del ejemplo Bistro.
 
 ## Governance
-<!-- Example: Constitution supersedes all other practices; Amendments require documentation, approval, migration plan -->
+Esta constitución prevalece sobre otras prácticas del proyecto. Enmiendas: documentadas y
+aprobadas por el usuario antes de aplicarse. Versionado semántico: MAJOR por redefiniciones o
+eliminaciones incompatibles; MINOR por principios o secciones nuevas; PATCH por aclaraciones.
+Toda especificación, plan y tarea MUST verificar cumplimiento de esta constitución, indicar la
+procedencia de cada obligación y justificar cualquier complejidad añadida.
 
-[GOVERNANCE_RULES]
-<!-- Example: All PRs/reviews must verify compliance; Complexity must be justified; Use [GUIDANCE_FILE] for runtime development guidance -->
-
-**Version**: [CONSTITUTION_VERSION] | **Ratified**: [RATIFICATION_DATE] | **Last Amended**: [LAST_AMENDED_DATE]
-<!-- Example: Version: 2.1.1 | Ratified: 2025-06-13 | Last Amended: 2025-07-16 -->
+**Version**: 1.1.1 | **Ratified**: TODO(RATIFICATION_DATE): pendiente de aprobación del usuario | **Last Amended**: 2026-11-02
