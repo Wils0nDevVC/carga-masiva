@@ -1,6 +1,15 @@
 <!--
 Sync Impact Report
-- Versión: 2.1.0 → 3.0.0 (MAJOR: se invierte la regla vigente de 2.0.0/2.1.0 de §6 que asignaba
+- Versión: 3.0.0 → 3.1.0 (MINOR: se resuelven pendientes y se añaden precisiones para la Feature 005,
+  recepción y registro de cargas en ms-control, por decisión del usuario del 2026-11-02.)
+- Principios modificados en 3.1.0: §5 (Data sin resultado = null incluido en el JSON; camelCase),
+  §9 (Control valida también el JWT; contrato mínimo de claims `sub` + `role`; tamaño máximo de
+  archivo predeterminado de 10 MiB configurable; Rate Limiting en Control para el endpoint de carga;
+  fallo definitivo de publicación en `carga_masiva` → Fallido), Pendientes (se retiran: Data sin
+  resultado y serialización; límites de tamaño de archivo; ubicación del Rate Limiting; recuperación
+  de mensajes no publicados en `carga_masiva`). Resto sin cambios.
+- Plantillas: sin cambios necesarios. Fecha de ratificación: sigue pendiente.
+- Historial 3.0.0 (referencia): Versión 2.1.0 → 3.0.0 (MAJOR: se invierte la regla vigente de 2.0.0/2.1.0 de §6 que asignaba
   las EF Core Migrations a ms-control con aplicación automática al iniciar. Pasa a regir una única
   base SQL Server compartida cuyo esquema y procedimientos se gestionan con scripts SQL versionados
   en `database/`, aplicados por un runner ejecutado desde Docker Compose; los microservicios usan
@@ -105,7 +114,8 @@ Sync Impact Report
 - `Response<T>` como `record` genérico en `Acity.Common/Helpers`, con los campos Data, IsSuccess,
   Message, Code y Errors (colección de mensajes opcional). [Decisión]
 - `Code` representa el estado HTTP y MUST coincidir con el estado HTTP real. [Decisión]
-- El tratamiento de Data sin resultado y la serialización se definen en el plan. [Decisión]
+- Serialización JSON en camelCase con los cinco campos siempre presentes; cuando no hay
+  resultado, Data se serializa como `null`. [Decisión]
 - Manejo global de excepciones, sin Reec. [README §4] [Decisión]
 - MUST NOT existir dos formatos de error incompatibles ni campos añadidos al contrato sin
   autorización. [Decisión]
@@ -232,7 +242,18 @@ Sync Impact Report
 - Gateway mínimo con Ocelot en .NET 10: reenvío de solicitudes y validación del JWT emitido por
   Authentication. [README §2] [Decisión]
 - Control valida el permiso para ejecutar cargas masivas. [README §3]
-- Rate Limiting obligatorio. [README §4]
+- Control valida también la firma y vigencia del JWT, además del Gateway, sin cabeceras propias ni
+  modos que omitan la seguridad. Contrato mínimo de claims que Autenticación MUST emitir: `sub`
+  (identificador numérico de Usuario) y `role` (Administrador u Operador); el correo no se exige
+  como claim y se obtiene del usuario persistido. [Decisión]
+- Tamaño máximo del archivo recibido por Control: 10 MiB (10 485 760 bytes) predeterminado,
+  configurable por variable de entorno. [README §2, §3] [Decisión]
+- Rate Limiting obligatorio; se aplica en Control al endpoint de carga y no se duplica por costumbre
+  en el Gateway. [README §4] [Decisión]
+- Control publica en `carga_masiva` tras subir el archivo y registrar la carga; ante un fallo
+  definitivo de publicación registra Fallido (solo desde Pendiente), su historial y la incidencia
+  técnica, sin Outbox ni servicios de recuperación. Una falta de confirmación no prueba que el
+  mensaje no llegó; no se promete atomicidad entre almacenamiento, base y cola. [Decisión]
 - Polly para reintentos y Circuit Breaker; los parámetros concretos (cantidad, intervalos, errores
   reintentables, operaciones protegidas) se definen en las features de Control, Carga Masiva y
   Notificaciones, evitando duplicar efectos de escritura. Los reintentos son limitados; reintentar o
@@ -287,11 +308,10 @@ Sync Impact Report
   versiones antiguas de los repositorios. [Decisión]
 
 ## Pendientes y no autorizado
-Permanecen pendientes (no decididos): tratamiento de Data
-sin resultado y serialización de `Response<T>`; rotación y retención de logs; parámetros de
+Permanecen pendientes (no decididos): rotación y retención de logs; parámetros de
 Polly (se fijan en las features de Control, Carga Masiva y Notificaciones); tratamiento operativo
-de archivos ilegibles y recuperación de notificaciones no publicadas (features del servicio
-que corresponda); límites de tamaño de archivo; contenido exacto del correo; React; verificación
+de archivos ilegibles y recuperación de mensajes no publicados en `notificaciones` (features del
+servicio que corresponda); contenido exacto del correo; React; verificación
 operativa de Docker y SQL Server en el equipo de ejecución; la adaptación y validación del
 runner de `database/` y la limpieza de ms-control (migraciones EF Core, modelo completo y
 arranque con migraciones) quedan pendientes de una nueva feature. Refresh tokens es opcional en el
@@ -305,4 +325,4 @@ eliminaciones incompatibles; MINOR por principios o secciones nuevas; PATCH por 
 Toda especificación, plan y tarea MUST verificar cumplimiento de esta constitución, indicar la
 procedencia de cada obligación y justificar cualquier complejidad añadida.
 
-**Version**: 3.0.0 | **Ratified**: TODO(RATIFICATION_DATE): pendiente de aprobación del usuario | **Last Amended**: 2026-11-02
+**Version**: 3.1.0 | **Ratified**: TODO(RATIFICATION_DATE): pendiente de aprobación del usuario | **Last Amended**: 2026-11-02

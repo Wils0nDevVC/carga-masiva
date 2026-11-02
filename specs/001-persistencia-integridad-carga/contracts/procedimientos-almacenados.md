@@ -47,6 +47,8 @@ Esta feature no define endpoints. Los contratos son: dos procedimientos almacena
 
 **No hace**: registrar incidencias técnicas (las inserta la aplicación tras revertir), contar intentos ni enviar correos.
 
+> **Precisado por la Feature 005 (2026-11-02)**: un script versionado nuevo añade un parámetro **opcional** de estado de origen esperado. Sin él, el comportamiento descrito arriba no cambia. Con él, si el estado actual no coincide, devuelve `Cambiado` = 0 sin actualizar la carga, sin historial y sin tocar periodos; la comprobación y el cambio son atómicos. Lo usa ms-control para pasar a Fallido solo desde Pendiente. Ver `specs/005-recepcion-registro-cargas/spec.md` FR-032.
+
 ## Cerrojo de exclusividad del consumidor de carga masiva
 
 - Recurso con nombre fijo, modo exclusivo, propietario de sesión, sin espera (timeout 0), adquirido con el procedimiento de sistema de bloqueos de aplicación de SQL Server (`sp_getapplock`; mecanismo conocido, **no verificado en documentación en esta sesión**).
