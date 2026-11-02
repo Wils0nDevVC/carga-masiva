@@ -8,7 +8,7 @@
 
 **Input**: Fundación común de `ms-autenticacion`, `ms-control`, `ms-carga-masiva` y `ms-notificaciones`: estructura de capas, convenciones, configuración, logs, salud, migraciones EF Core y Docker. Una sola feature; esta etapa genera solo la especificación.
 
-**Procedencia**: `[README §n]` = `referencias/README.md`; `[Constitución §n]` = `.specify/memory/constitution.md` v2.0.0; `[Decisión]` = decisión explícita del usuario (incluye el prompt de esta feature); `[Referencia]` = observado en el código del repositorio de referencia (ver "Contexto"); `[Feature 001]` = decisiones y modelo de `specs/001-persistencia-integridad-carga/`. Un requisito sin etiqueta propia no es una decisión aprobada.
+**Procedencia**: `[README §n]` = `referencias/README.md`; `[Constitución §n]` = `.specify/memory/constitution.md` v2.1.0; `[Decisión]` = decisión explícita del usuario (incluye el prompt de esta feature); `[Referencia]` = observado en el código del repositorio de referencia (ver "Contexto"); `[Feature 001]` = decisiones y modelo de `specs/001-persistencia-integridad-carga/`. Un requisito sin etiqueta propia no es una decisión aprobada.
 
 ## Contexto
 
@@ -36,7 +36,7 @@ Cada uno de los cuatro microservicios tiene la misma organización de capas, com
 2. **Given** los proyectos de un servicio, **When** se revisan sus referencias, **Then** `Acity.Domain` no depende de ninguna otra capa, `Acity.Application` depende de Domain y Common, `Acity.Infrastructure` depende de Application y `Acity.Api` compone las capas y expone el host.
 3. **Given** los cuatro servicios, **When** se revisan los nombres y referencias, **Then** los nombres repetidos (`Acity.*`) pertenecen a proyectos independientes y ninguna referencia cruza de un servicio a otro.
 4. **Given** una capa sin contenido necesario, **When** se revisa la estructura, **Then** no existen carpetas, repositorios, abstracciones ni comportamientos sin una necesidad concreta de esta fundación, ni CRUD de ejemplo.
-5. **Given** los `Acity.Api` de los cuatro servicios, **When** se arrancan, **Then** todos son hosts ASP.NET Core; los consumidores de colas futuros se ejecutarán como servicios en segundo plano dentro de ese host.
+5. **Given** los `Acity.Api` de los cuatro servicios, **When** se arrancan, **Then** todos son hosts ASP.NET Core Web API con controladores; los consumidores RabbitMQ futuros se ejecutarán mediante `BackgroundService` dentro de ese host y no existen proyectos `Acity.Worker`.
 
 ---
 
@@ -127,7 +127,7 @@ Cada servicio se configura por entorno, usa variables de entorno para secretos, 
 **Estructura y dependencias**
 
 - **FR-001**: Cada uno de `ms-autenticacion/`, `ms-control/`, `ms-carga-masiva/` y `ms-notificaciones/` MUST tener los proyectos .NET 10 `src/Acity.Api`, `src/Acity.Application`, `src/Acity.Domain`, `src/Acity.Infrastructure` y `src/Acity.Common`. [Decisión] [Constitución §4]
-- **FR-002**: `Acity.Api` MUST ser un host ASP.NET Core con controladores MVC en los cuatro servicios; los consumidores futuros podrán ejecutarse como servicios en segundo plano dentro de ese host. [Decisión] [Constitución §3]
+- **FR-002**: `Acity.Api` MUST ser el host ASP.NET Core Web API con controladores en los cuatro servicios, siguiendo la arquitectura de referencia; los consumidores RabbitMQ se ejecutarán mediante `BackgroundService` dentro de ese host cuando se implementen sus funciones, y MUST NOT crearse proyectos `Acity.Worker`. [Decisión] [Constitución §3]
 - **FR-003**: Las referencias entre capas MUST seguir Clean Architecture: Domain sin dependencias de otras capas; Application depende de Domain y Common; Infrastructure depende de Application; Api compone las capas y registra las dependencias. El dominio MUST ser independiente de la infraestructura. [Referencia] [Decisión]
 - **FR-004**: MUST NOT existir referencias de código entre proyectos de distintos microservicios ni una biblioteca compartida adicional; los nombres repetidos son proyectos independientes. [Decisión]
 - **FR-005**: Cada servicio MUST poder compilarse y ejecutarse de forma independiente y sus comandos de compilación y ejecución MUST ser inequívocos mediante las rutas de ese servicio. [Decisión]
@@ -224,7 +224,6 @@ Cada servicio se configura por entorno, usa variables de entorno para secretos, 
 
 ## Asuntos pendientes (no son requisitos aprobados)
 
-- La constitución v2.0.0 todavía lista el host Api/Worker de los consumidores como pendiente (§3 y "Pendientes"); la decisión de esta feature (Acity.Api en los cuatro) lo resuelve y requiere una enmienda mínima de la constitución, que **no** se hizo aquí por instrucción.
 - Base y volumen existentes en este equipo creados por el runner anterior: el plan debe usar una base nueva y vacía (nombre o volumen distintos) y conservar los existentes.
 - Verificación operativa de Docker y SQL Server: la imagen es amd64 y se ejecuta emulada en Apple silicon, sin soporte oficial de Microsoft; solo se comprobó en este equipo con el runner anterior. No se declara Docker funcional.
 - Compatibilidad y licencia de EF Core 10 y de los demás paquetes (sin fijar versiones): se verifican en el plan.

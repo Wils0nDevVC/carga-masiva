@@ -1,6 +1,11 @@
 <!--
 Sync Impact Report
-- Versión: 1.3.0 → 2.0.0 (MAJOR: se invierte la regla de §6 que prohibía EF Core Migrations y
+- Versión: 2.0.0 → 2.1.0 (MINOR: se resuelve el pendiente Api/Worker: los cuatro microservicios usan
+  el host `Acity.Api` (ASP.NET Core Web API con controladores) y los consumidores RabbitMQ corren
+  como `BackgroundService` dentro de ese host; no existen proyectos `Acity.Worker`)
+- Principios modificados en 2.1.0: §3 (host), §4 (ejecutables), Pendientes (se retira Api/Worker).
+  Resto sin cambios; la fecha de ratificación sigue pendiente.
+- Cambios 2.0.0 (referencia): (MAJOR: se invierte la regla de §6 que prohibía EF Core Migrations y
   exigía scripts SQL versionados con runner; el esquema pasa a migraciones EF Core administradas
   desde ms-control, con propietario único y aplicación automática al iniciar)
 - Principios modificados en 2.0.0: §2 (descripción de `database/`), §6 (gestión del esquema),
@@ -64,14 +69,14 @@ Sync Impact Report
   [Decisión]
 - Entradas HTTP con ASP.NET Core MVC y controladores. No se crean endpoints sin un requisito.
   [Decisión]
-- El host (Api o Worker) de los consumidores de colas queda pendiente del plan; los proyectos
-  HTTP usan `Acity.Api`. [Decisión]
+- Los cuatro microservicios usan el host `Acity.Api`, ASP.NET Core Web API con controladores,
+  siguiendo la arquitectura de referencia. Los consumidores RabbitMQ se ejecutan mediante
+  `BackgroundService` dentro de ese host; MUST NOT crearse proyectos `Acity.Worker`. [Decisión]
 - Los ejecutables de cada microservicio son independientes. [README §4] [Decisión]
 
 ### 4. Capas y convenciones
-- Proyectos por microservicio: Acity.Api (proyectos con entradas HTTP), Acity.Application,
-  Acity.Domain, Acity.Infrastructure y Acity.Common. El nombre del ejecutable de los consumidores
-  se define al resolver Api/Worker en el plan. MUST NOT usarse Servicio.Api, Servicio.Domain ni
+- Proyectos por microservicio: Acity.Api (host de los cuatro servicios), Acity.Application,
+  Acity.Domain, Acity.Infrastructure y Acity.Common. MUST NOT usarse Servicio.Api, Servicio.Domain ni
   equivalentes. [Decisión]
 - No se crean capas ni carpetas vacías para aparentar arquitectura completa. [Decisión]
 - Application: casos de uso, Commands/Queries, handlers, DTOs, validadores, interfaces y mapeos.
@@ -259,7 +264,7 @@ Sync Impact Report
   versiones antiguas de los repositorios. [Decisión]
 
 ## Pendientes y no autorizado
-Permanecen pendientes (no decididos): host Api/Worker de los consumidores; tratamiento de Data
+Permanecen pendientes (no decididos): tratamiento de Data
 sin resultado y serialización de `Response<T>`; rotación y retención de logs; parámetros de
 Polly (se fijan en las features de Control, Carga Masiva y Notificaciones); tratamiento operativo
 de archivos ilegibles y recuperación de notificaciones no publicadas (features del servicio

@@ -35,4 +35,4 @@
 - Los criterios SC-001–SC-010 no nombran tecnologías concretas salvo "SQL Server"/"Compose" como entorno aprobado; se mantienen medibles por conteo y observación manual.
 - No hay marcadores de aclaración: lo no resuelto figura en "Asuntos pendientes" y no bloquea la especificación.
 - Revisión del proyecto de referencia: se accedió al repositorio y se leyeron los archivos indicados en "Contexto"; no se afirma haber revisado controladores ni handlers.
-- Pendiente de enmienda fuera de esta feature: la constitución aún lista el host Api/Worker como pendiente.
+- El pendiente Api/Worker quedó resuelto por decisión del usuario y recogido en la constitución v2.1.0 (§3, §4, Pendientes).
