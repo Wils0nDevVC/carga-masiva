@@ -1,6 +1,19 @@
 <!--
 Sync Impact Report
-- Versión: 2.0.0 → 2.1.0 (MINOR: se resuelve el pendiente Api/Worker: los cuatro microservicios usan
+- Versión: 2.1.0 → 3.0.0 (MAJOR: se invierte la regla vigente de 2.0.0/2.1.0 de §6 que asignaba
+  las EF Core Migrations a ms-control con aplicación automática al iniciar. Pasa a regir una única
+  base SQL Server compartida cuyo esquema y procedimientos se gestionan con scripts SQL versionados
+  en `database/`, aplicados por un runner ejecutado desde Docker Compose; los microservicios usan
+  EF Core + LINQ solo para acceso a datos, sin generar ni aplicar migraciones. Los modelos se
+  obtienen por ingeniería inversa de las tablas que cada servicio necesita.)
+- Principios modificados en 3.0.0: §2 (`database/` vuelve a ser componente activo), §6 (gestión del
+  esquema, procedimientos, modelos por servicio), §11 (orden de arranque en Compose), Pendientes
+  (se sustituye el pendiente de arranque de Control con migraciones), Governance (versión del pie).
+  Resto sin cambios; la fecha de ratificación sigue pendiente. Corrige la discrepancia previa
+  (reporte 2.1.0 frente a pie 2.0.0).
+- Historial (ya no vigente): las entradas de 2.1.0 y 2.0.0 que siguen describen decisiones previas;
+  la regla de migraciones EF Core de ms-control de 2.0.0 queda superada por 3.0.0.
+- Versión 2.1.0 (referencia): (MINOR: se resuelve el pendiente Api/Worker: los cuatro microservicios usan
   el host `Acity.Api` (ASP.NET Core Web API con controladores) y los consumidores RabbitMQ corren
   como `BackgroundService` dentro de ese host; no existen proyectos `Acity.Worker`)
 - Principios modificados en 2.1.0: §3 (host), §4 (ejecutables), Pendientes (se retira Api/Worker).
@@ -49,7 +62,7 @@ Sync Impact Report
 - Monorepo bajo `carga-masiva/`, con un único Git y un único Spec Kit en la raíz. [Decisión]
 - Una constitución común; especificaciones, planes y tareas acotados por componente. [Decisión]
 - Directorios contenedores en la raíz: `api-gateway/` (API Gateway con Ocelot), `database/`
-  (implementación anterior de scripts SQL; fuera del flujo activo), `ms-autenticacion/` (autenticación y emisión de JWT),
+  (scripts SQL versionados y runner de evolución del esquema; componente activo), `ms-autenticacion/` (autenticación y emisión de JWT),
   `ms-control/` (recepción de archivos y seguimiento de cargas), `ms-carga-masiva/`
   (procesamiento masivo del Excel) y `ms-notificaciones/` (envío de correos). [Decisión]
 - Estos nombres identifican los directorios contenedores; los proyectos internos mantienen los
@@ -99,16 +112,23 @@ Sync Impact Report
 
 ### 6. Persistencia
 - SQL Server; EF Core y LINQ en Infrastructure; sin Dapper. [README §4 y §5] [Decisión]
-- Esquema gestionado con EF Core Migrations. `ms-control/Acity.Infrastructure` es el único
-  propietario de las migraciones de toda la base SQL Server compartida; los demás microservicios
-  usan EF Core sin generar ni aplicar migraciones. [Decisión]
-- Modelado inicial integral y una migración inicial que materialice el esquema aprobado; los
-  scripts de `referencias/` sirven de referencia para los mapeos y esa migración. [Decisión]
-- Las migraciones se aplican automáticamente al iniciar ms-control, antes de atender solicitudes
-  (migraciones automáticas). [README §4] [Decisión]
-- Un único responsable aplica los cambios de esquema: ms-control. [Decisión]
+- Una única base SQL Server compartida. El esquema y los procedimientos se gestionan con scripts
+  SQL versionados en `database/`, aplicados por un runner ejecutado desde Docker Compose, que
+  aplica las versiones pendientes y registra las aplicadas correctamente. [README Base de datos:
+  migraciones automáticas y scripts de base de datos] [Decisión]
+- Ningún microservicio crea ni modifica el esquema al arrancar, ni genera o aplica EF Core
+  Migrations. [Decisión]
+- EF Core y LINQ se usan para acceso a datos y mapeo. Los modelos se obtienen por ingeniería
+  inversa de las tablas que cada microservicio necesita, respetando las capas; es una operación de
+  desarrollo, no de arranque. [Decisión]
+- Cada servicio incorpora únicamente las entidades y mapeos que necesita funcionalmente; no se
+  genera CRUD ni lógica adicional, y no se incorpora el modelo completo en Control por razones de
+  despliegue. El código generado se revisa e integra respetando las capas, sin sobrescribir
+  personalizaciones indiscriminadamente. [Decisión]
+- Modelado inicial integral del esquema en los scripts; los scripts de `referencias/` sirven de
+  referencia. [Decisión]
 - Procedimientos almacenados conforme al README; sus responsabilidades se delimitan en el plan.
-  Se conservan y se incorporan mediante SQL dentro de las migraciones. [README §4] [Decisión]
+  Se conservan y se despliegan mediante los scripts versionados. [README §4] [Decisión]
 - Identidad propia persistida en SQL Server; sin proveedores externos de identidad. Se persisten
   usuarios, roles y su asociación, sin motor genérico de permisos. [Decisión]
 - Roles: Administrador (carga archivos; consulta todas las cargas y sus incidencias) y Operador
@@ -248,6 +268,9 @@ Sync Impact Report
 - Un Docker Compose en la raíz levanta la solución y sus dependencias. RabbitMQ y SeaweedFS pueden
   declararse directo en Compose; solo se crean directorios si requieren archivos de
   configuración. [README §4] [Decisión]
+- Orden de arranque en Compose: SQL Server disponible → runner de `database/` completado
+  correctamente → microservicios. Si el runner falla, Compose no arranca los microservicios
+  dependientes. No se añade otro microservicio ni un ejecutable .NET para migraciones. [Decisión]
 - Postman es el cliente y entregable actual. React queda pendiente de confirmación: no se
   implementa ni se añaden dependencias anticipadas. [README §2 y §6] [Decisión]
 - Por decisión del usuario NO se crean proyectos ni suites de tests automatizados; esto no elimina
@@ -269,8 +292,9 @@ sin resultado y serialización de `Response<T>`; rotación y retención de logs;
 Polly (se fijan en las features de Control, Carga Masiva y Notificaciones); tratamiento operativo
 de archivos ilegibles y recuperación de notificaciones no publicadas (features del servicio
 que corresponda); límites de tamaño de archivo; contenido exacto del correo; React; verificación
-operativa de Docker y SQL Server en el equipo de ejecución; el arranque de ms-control con
-migraciones queda pendiente de su feature. Refresh tokens es opcional en el
+operativa de Docker y SQL Server en el equipo de ejecución; la adaptación y validación del
+runner de `database/` y la limpieza de ms-control (migraciones EF Core, modelo completo y
+arranque con migraciones) quedan pendientes de una nueva feature. Refresh tokens es opcional en el
 README y no está decidido.
 No se adoptan las convenciones de idioma, commits ni versionado de endpoints del ejemplo Bistro.
 
@@ -281,4 +305,4 @@ eliminaciones incompatibles; MINOR por principios o secciones nuevas; PATCH por 
 Toda especificación, plan y tarea MUST verificar cumplimiento de esta constitución, indicar la
 procedencia de cada obligación y justificar cualquier complejidad añadida.
 
-**Version**: 2.0.0 | **Ratified**: TODO(RATIFICATION_DATE): pendiente de aprobación del usuario | **Last Amended**: 2026-11-02
+**Version**: 3.0.0 | **Ratified**: TODO(RATIFICATION_DATE): pendiente de aprobación del usuario | **Last Amended**: 2026-11-02
