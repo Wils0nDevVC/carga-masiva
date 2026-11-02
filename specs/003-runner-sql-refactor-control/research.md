@@ -34,21 +34,32 @@ En los casos de error no se ejecuta el bootstrap ni ningún script, de modo que 
 
 ## D-04 Retiro del modelo de Control tras revisar referencias (Dec)
 
-**Resultado de la revisión (Obs)**: las siete entidades no tienen ninguna referencia fuera de su propio modelo, sus configuraciones y las migraciones; Control no implementa hoy ninguna función de recepción ni seguimiento. Por indicación del plan, no se conservan entidades por necesidades futuras supuestas.
+**Proceso en dos fases (Dec)**:
+1. **Revisión (provisional)**: mientras se reúne evidencia, cualquier entidad cuyo uso esté en duda se conserva provisionalmente; no se retira nada por suposición.
+2. **Decisión final**: por entidad se documenta su uso o ausencia, y se conserva solo si existe una referencia actual o una función de Control implementada o aprobada. No se conservan ni se agregan entidades por necesidades futuras supuestas.
 
-| Entidad | Referencias fuera de Domain/Configurations/Migrations | Función de Control que la usa hoy | Decisión |
+**Evidencia reunida (Obs, solo lecturas)**:
+- Búsqueda por nombre en los `*.cs`, `*.csproj` y `*.json` de los cuatro servicios y del Gateway, excluyendo `bin/` y `obj/`: las siete entidades aparecen únicamente en `ms-control/src/Acity.Domain/Entities`, `Persistence/Configurations` y `Persistence/Migrations` (6 a 10 archivos cada una, todos de ese modelo). 0 referencias fuera de él, ni en Application, Api, el repositorio, el Unit of Work ni los otros servicios.
+- Código funcional de Control: solo existen `HealthController` y `GlobalExceptionHandler`; no hay controladores de negocio, comandos, consultas, handlers ni `DbSet`. `GenericRepository<T>` usa `Set<TEntity>()` de forma genérica.
+- Funciones de Control **aprobadas**: la constitución (§2) y el README (§3) solo describen el rol de Control (recepción de archivos, seguimiento de cargas, validar el permiso para cargas masivas). No existe spec, plan ni tasks aprobados de una feature de Control; las features 001 (reglas de persistencia para los cuatro servicios), 002 (fundación) y 003 (esta) no definen funciones de negocio de Control. Una descripción de rol no es una función aprobada y la existencia de la tabla en el esquema tampoco justifica la entidad.
+
+**Resultado por entidad**:
+
+| Entidad | Referencias actuales (fuera del modelo/migraciones) | Función de Control implementada o aprobada que la use | Decisión final |
 |---|---|---|---|
 | Rol | 0 | Ninguna | Retirar |
 | Usuario | 0 | Ninguna | Retirar |
-| CargaArchivo | 0 | Ninguna (función futura de recepción) | Retirar |
+| CargaArchivo | 0 | Ninguna implementada ni aprobada (el rol de Control en la constitución no es una función aprobada) | Retirar |
 | CargaPeriodo | 0 | Ninguna | Retirar |
 | Producto | 0 | Ninguna | Retirar |
-| Incidencia | 0 | Ninguna (función futura de consulta) | Retirar |
+| Incidencia | 0 | Ninguna implementada ni aprobada | Retirar |
 | CargaEstadoHistorial | 0 | Ninguna | Retirar |
+
+Si en la implementación, antes de retirar, aparece una referencia no detectada (por ejemplo, tras una búsqueda adicional), esa entidad se conserva y se documenta con su referencia; el resultado final por entidad se registra en `quickstart.md`.
 
 **Se retira en Control**: `Acity.Domain/Entities/*` (7), `Persistence/Configurations/*` (7), `Persistence/Migrations/*` (5 archivos), `Persistence/DatabaseInitializer.cs`, su invocación y los `using` en `Program.cs`, y el `ConfigureConventions` de `AppDbContext` (que retiraba `ForeignKeyIndexConvention` solo para replicar el DDL).
 
-**Se conserva**: `AppDbContext` (sin entidades, igual que los otros tres servicios), `GenericRepository<T>`, `UnitOfWork`, `DependencyInjection`, `Program.cs` sin migración ni espera, `HealthController`, manejo global de errores, Serilog, Dockerfile, `.config/dotnet-tools.json` y el paquete `Design` (los dos últimos son el requisito del procedimiento de ingeniería inversa, FR-029) y el pin `System.Security.Cryptography.Pkcs`. **Por qué**: cumple la instrucción explícita y la constitución §6; el modelo que haga falta se regenera con D-06 cuando una feature lo necesite. Esta decisión resuelve el pendiente "clasificación de entidades" de la spec y **precisa** FR-022 y el escenario 5 de US4: la evidencia que justifica conservar una entidad es una función de Control implementada o aprobada ahora, no una necesidad futura supuesta (ver nota en la spec).
+**Se conserva**: `AppDbContext` (sin entidades, igual que los otros tres servicios), `GenericRepository<T>`, `UnitOfWork`, `DependencyInjection`, `Program.cs` sin migración ni espera, `HealthController`, manejo global de errores, Serilog, Dockerfile, `.config/dotnet-tools.json` y el paquete `Design` (los dos últimos son el requisito del procedimiento de ingeniería inversa, FR-029) y el pin `System.Security.Cryptography.Pkcs`. **Por qué**: cumple la instrucción explícita y la constitución §6; el modelo que haga falta se regenera con D-06 cuando una feature lo necesite. Esta decisión resuelve el pendiente "clasificación de entidades" de la spec y **precisa** FR-022 y el escenario 5 de US4: la evidencia que justifica conservar una entidad es una referencia actual o una función de Control implementada o aprobada, no una necesidad futura supuesta; la duda mantiene la entidad provisionalmente solo hasta reunir evidencia (ver nota en la spec).
 
 **Efecto sobre `Acity.Domain` de Control**: queda sin contenido, igual que en los otros tres servicios; el proyecto se conserva por §4 (cinco proyectos por servicio). No se crean carpetas vacías.
 

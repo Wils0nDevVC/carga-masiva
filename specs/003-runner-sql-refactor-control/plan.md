@@ -48,7 +48,7 @@ Entrega **solo documentación de diseño**: no se modifica código, Compose, scr
 | §11 Docker y pruebas | Orden SQL Server → runner → servicios; si el runner falla, no arrancan; sin otro microservicio ni ejecutable .NET; sin tests | Pasa |
 | §12 Dependencias | Ninguna añadida; `Design` y `dotnet-ef` ya presentes (solo desarrollo) | Pasa |
 
-Hallazgo de coherencia: la constitución §6 pide ingeniería inversa para "las entidades y mapeos que cada servicio necesita funcionalmente". Hoy ningún servicio tiene función implementada, por lo que el resultado de la revisión de Control (D-04) retira las siete entidades y los cuatro servicios quedan con `AppDbContext` sin entidades. No es un conflicto; es el resultado de aplicar el criterio.
+Hallazgo de coherencia: la constitución §6 pide ingeniería inversa para "las entidades y mapeos que cada servicio necesita funcionalmente". La revisión de Control (D-04) sigue dos fases: conservación provisional de lo dudoso hasta reunir evidencia y decisión final por entidad (uso o ausencia documentados; se conserva solo con una referencia actual o una función de Control implementada o aprobada). La evidencia reunida (0 referencias; sin función implementada ni aprobada) lleva a retirar las siete y a que los cuatro servicios queden con `AppDbContext` sin entidades. No es un conflicto; es el resultado de aplicar el criterio.
 
 Tras Phase 1: sin violaciones nuevas.
 

@@ -23,7 +23,7 @@ Guía de verificación manual (sin pruebas automatizadas) para cuando exista la 
 | 8 | Apuntar el runner a una base temporal con `__EFMigrationsHistory` y a otra con tablas sin `SchemaMigraciones` | Error claro y base intacta en ambos casos; los servicios no arrancan | US6-2, FR-013 |
 | 9 | Detener SQL Server y ejecutar el runner | Espera acotada y error sin crear nada | US1-1 |
 | 10 | Revisar salida y registros del runner | Sin contraseña ni cadenas de conexión | US1-8, FR-008 |
-| 11 | Revisar `ms-control` | 0 migraciones, 0 inicializador, 0 entidades ni configuraciones; compila sin advertencias; sin referencias entre servicios ni paquetes no autorizados | US3, US4, SC-008/009 |
+| 11 | Revisar `ms-control`: repetir la búsqueda de referencias por entidad antes de retirar y registrar el resultado final por entidad (uso o ausencia; conservada solo con referencia actual o función implementada/aprobada) | 0 migraciones, 0 inicializador, 0 entidades ni configuraciones salvo las que la evidencia justifique y quede documentada; compila sin advertencias; sin referencias entre servicios ni paquetes no autorizados | US3, US4, SC-008/009 |
 | 12 | Arrancar `ms-control` contra la base del runner | Escucha sin operaciones de esquema; `GET /health` 200; no crea `__EFMigrationsHistory` | US3-2 |
 | 13 | Comparar esquema y registro antes y después de arrancar los cuatro servicios | Idénticos | US2-4, SC-007 |
 | 14 | Repetir las reglas de la Feature 001 sobre `CargaMasivaApp` | Mismos resultados que con el runner y con EF anteriores | US6-4 |
