@@ -8,7 +8,7 @@
 
 **Input**: User description: "Feature: persistencia y reglas de integridad para la carga masiva" (prompt `/speckit-specify` del usuario) y decisiones aprobadas posteriores sobre estados, fallos, reintentos, identidad y valores inválidos.
 
-**Procedencia**: `[README §n]` = sección de `referencias/README.md`; `[Constitución §n]` = `.specify/memory/constitution.md` v1.3.0; `[Decisión]` = decisión explícita del usuario (no proviene del README). Lo no resuelto figura como pendiente y no como requisito.
+**Procedencia**: `[README §n]` = sección de `referencias/README.md`; `[Constitución §n]` = `.specify/memory/constitution.md` v2.0.0; `[Decisión]` = decisión explícita del usuario (no proviene del README). Lo no resuelto figura como pendiente y no como requisito.
 
 ## Contexto
 
@@ -173,7 +173,7 @@ La identidad es propia y persistida; existen los roles Administrador y Operador,
 2. **Given** un Operador, **When** consulta cargas e incidencias, **Then** accede solo a las propias y puede cargar archivos.
 3. **Given** un Operador y la carga de otro usuario, **When** intenta consultarla, **Then** no tiene acceso a ella.
 4. **Given** los datos persistidos de identidad, **When** se revisan, **Then** ninguna contraseña está en texto plano ni con cifrado reversible.
-5. **Given** los scripts versionados, **When** se revisan, **Then** no contienen contraseñas; las credenciales iniciales provienen de configuración externa.
+5. **Given** los scripts y migraciones versionados, **When** se revisan, **Then** no contienen contraseñas; las credenciales iniciales provienen de configuración externa.
 
 ---
 
@@ -202,7 +202,7 @@ La identidad es propia y persistida; existen los roles Administrador y Operador,
 - **FR-002**: Los roles MUST ser Administrador y Operador. El Administrador carga archivos y consulta todas las cargas y sus incidencias; el Operador carga archivos y consulta solo sus propias cargas e incidencias. [Decisión]
 - **FR-003**: El sistema MUST NOT incorporar un motor genérico de permisos. [Decisión]
 - **FR-004**: Las contraseñas MUST almacenarse con un hash apropiado para contraseñas, nunca en texto plano ni con cifrado reversible. El hash lo genera ms-autenticacion con `PasswordHasher` de ASP.NET Core Identity, sin implementar PBKDF2 manualmente; esta feature solo define su almacenamiento. [Decisión]
-- **FR-005**: MUST existir un usuario inicial por rol para la demostración, con credenciales suministradas por configuración externa y sin contraseñas en scripts versionados. [Decisión]
+- **FR-005**: MUST existir un usuario inicial por rol para la demostración, con credenciales suministradas por configuración externa y sin contraseñas en scripts ni migraciones versionados. [Decisión]
 
 **Carga y archivo**
 
@@ -294,7 +294,7 @@ Descripción conceptual; no implica una tabla por concepto ni fija columnas, tip
 
 - Las reglas de negocio provienen del README y de la constitución vigente; las precisiones de estados, fallos, identidad y valores inválidos son decisiones del usuario y no del README.
 - Se mantiene el modelo mínimo; no se crean estructuras preventivas para funcionalidades no autorizadas.
-- Las restricciones técnicas acordadas (SQL Server, EF Core y LINQ, scripts SQL versionados, Polly y RabbitMQ) se aplican en el plan, no aquí. [Constitución §6, §9]
+- Las restricciones técnicas acordadas (SQL Server, EF Core y LINQ con migraciones administradas desde ms-control, Polly y RabbitMQ) se aplican en el plan, no aquí. La estrategia de despliegue por runner de scripts fue sustituida por esas migraciones (constitución v2.0.0); las reglas de negocio no cambian. [Constitución §6, §9]
 - Los escenarios se verifican manualmente; no se crean pruebas automatizadas. [Constitución §11]
 - El Excel de ejemplo solo ilustra el formato y la presencia de varios periodos; no define límites ni validaciones.
 - Los parámetros de reintento (cantidad, intervalos) se fijan en las features de Control, Carga Masiva y Notificaciones; esta feature solo define límites transaccionales, operaciones repetibles y resultados persistentes.
@@ -303,6 +303,6 @@ Descripción conceptual; no implica una tabla por concepto ni fija columnas, tip
 ## Asuntos pendientes (no son requisitos aprobados)
 
 - Tratamiento operativo de un archivo ilegible (formato o contenido inválido: incidencia de entrada sin reintentos técnicos; descarga o almacenamiento: técnica): se define en la feature de procesamiento.
-- Recuperación de notificaciones no publicadas: se resuelve en la feature del servicio que publica el mensaje; no se implementa en `database/`.
+- Recuperación de notificaciones no publicadas: se resuelve en la feature del servicio que publica el mensaje; no se implementa en la capa de persistencia.
 - Verificación operativa de Docker y SQL Server en el equipo donde se ejecutará (ver `research.md` R-11); no bloquea la creación de la base.
 - Modelo físico, índices, procedimientos y scripts: ver `plan.md` y `data-model.md`.

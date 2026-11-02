@@ -1,6 +1,6 @@
 # Research: Persistencia y reglas de integridad para la carga masiva
 
-Procedencia: **Dec** = decisión del usuario; **Req** = README; **Prop** = propuesta de este plan (las aceptadas por el usuario se indican como Dec). El consumidor, el runner y Autenticación se implementan en sus features; aquí se diseña el soporte de persistencia.
+Procedencia: **Dec** = decisión del usuario; **Req** = README; **Prop** = propuesta de este plan (las aceptadas por el usuario se indican como Dec). El consumidor, las migraciones y Autenticación se implementan en sus features; aquí se diseña el soporte de persistencia.
 
 ## R-01 Una base compartida
 - **Decisión** (Prop): una base SQL Server para los cuatro servicios; cada servicio mapea en su `Acity.Infrastructure` solo las tablas que usa, sin biblioteca de entidades compartida (ejecutables independientes). Base única según el diagrama del README.
@@ -23,7 +23,7 @@ Procedencia: **Dec** = decisión del usuario; **Req** = README; **Prop** = propu
 - Un proceso "zombi" (pausa larga, partición de red) podría seguir un instante tras perder el cerrojo. Aun así la base lo contiene: `UNIQUE (CargaId, Periodo)`, el índice filtrado de periodo y la unicidad de `CodigoProducto` impiden duplicados; el peor caso es trabajo repetido que la base rechaza (se trata como colisión, R-06).
 - No cubre la pérdida de un mensaje de una carga Pendiente (corresponde a la durabilidad de RabbitMQ y a la feature de Control).
 - Efecto sobre la regla "Pendiente/En proceso bloquea" del README: con un único consumidor secuencial y recuperación previa, el bloqueo solo se observaría si falla la exclusividad; se conserva como protección (usp_ReservarPeriodo lo implementa), pero no será el camino habitual.
-- Verificación pendiente: `sp_getapplock`, cómo comprobar la vigencia del cerrojo y el uso de una conexión dedicada sin pool se basan en conocimiento previo, no en documentación consultada en esta sesión.
+- Verificado en documentación oficial (sp_getapplock, 2-nov-2026): `@LockOwner = 'Session'` libera el cerrojo al cerrar la sesión y todos los cerrojos se liberan si el servidor se apaga; `@LockTimeout = 0` devuelve -1 si no se puede conceder de inmediato; el recurso se califica por la base de datos actual (el consumidor y el runner deben usar la misma base); `@Resource` distingue mayúsculas. **Sigue sin verificar** cómo comprobar la vigencia del cerrojo desde la aplicación (feature de Carga Masiva) y el uso de una conexión dedicada sin pool.
 
 ## R-03 Estados y transiciones; transitorio frente a terminal
 - **Matriz** (Dec): ver `data-model.md`. Pendiente y En proceso → Fallido; Cargado solo → Finalizado; Notificado y Fallido terminales; sin estados nuevos. Historial: cada transición aplicada inserta una fila; repetir una transición no duplica.
@@ -69,7 +69,7 @@ Agrupar por periodo no cambia qué fila gana si la decisión se toma **antes** d
 ## R-09 Polly y responsabilidades por feature
 Los parámetros (cantidad, intervalos, errores reintentables, operaciones protegidas) se definen en las features de Control, Carga Masiva y Notificaciones (Dec). Esta feature fija lo siguiente:
 - **Límites transaccionales**: una transacción EF por grupo de periodo; los procedimientos almacenados son transacciones propias, fuera de las transacciones de la aplicación; la reserva de periodo se confirma antes del grupo.
-- **Operaciones repetibles sin duplicar**: reservar un periodo (devuelve el resultado existente); cambiar estado a uno ya alcanzado; crear usuarios iniciales; aplicar scripts (por registro); reprocesar una carga (omite periodos Completado); reintentar solo la notificación.
+- **Operaciones repetibles sin duplicar**: reservar un periodo (devuelve el resultado existente); cambiar estado a uno ya alcanzado; crear usuarios iniciales; aplicar migraciones (por el historial de EF Core); reprocesar una carga (omite periodos Completado); reintentar solo la notificación.
 - **Resultados que deben persistir ante un fallo**: periodos Completado; incidencia ErrorTecnico tras revertir; periodos pendientes NoProcesado; estado Fallido con su historial; ErrorNotificacion con la carga en Finalizado; IntentosProceso.
 - **Responsabilidades futuras**: Control (crea la carga y el historial inicial, publica el mensaje); Carga Masiva (consumidor único, cerrojo, recuperación, reintentos, fases R-05, transición a Cargado/Finalizado/Fallido); Notificaciones (envío y Notificado, ErrorNotificacion); Autenticación (usuarios iniciales y hash).
 
@@ -96,23 +96,34 @@ Solo lecturas; no se instaló, descargó ni ejecutó nada.
 
 **Compatibilidad del motor frente a la del ejecutor**: son independientes. El motor (amd64, emulado en Apple silicon) es el riesgo principal y no se resuelve con otro ejecutor; un runner .NET tampoco lo arregla. Para el ejecutor, la opción de menor dependencia nueva es usar la misma imagen del servidor como base del runner (ya incluye `sqlcmd` y se descarga una sola vez), que sufre la misma emulación que el motor. Esto es una propuesta, no se ha ejecutado. No se cambia el motor aprobado ni se añade un runner .NET.
 
-**Verificación operativa que falta** (en la implementación): levantar el motor con `platform: linux/amd64` explícito en Compose, comprobar que arranca y acepta conexiones, ejecutar el runner contra él y repetirlo en el equipo de evaluación o documentar sus requisitos. Hasta entonces **no se declara Docker funcional**.
+**Verificación operativa realizada (2-nov-2026, este equipo)**: con `platform: linux/amd64` explícito, la imagen `mcr.microsoft.com/mssql/server:2022-CU27-ubuntu-22.04` (SQL Server 16.0.4295.3) arrancó emulada, quedó `healthy`, aceptó conexiones, y el runner (imagen construida sobre la misma base, con `sqlcmd` de `mssql-tools18`) aplicó V001 y V002. Esto es evidencia para **este** equipo y estas pruebas; Microsoft sigue sin soportar la emulación y no se ha probado el equipo de evaluación, así que no se generaliza. Notas: en el equipo hay otros contenedores SQL Server (otros proyectos, y uno llamado `carga-masiva-sqlserver` que no creó esta implementación y que no se tocó); el puerto del host es 14333 para no chocar con el 1433/1434 ya usados.
 
-## R-12 Runner de scripts versionados (diseño; no se implementa)
+**Hallazgo del runner (implementación anterior)**: la imagen copia los scripts al construirse; tras editar un script hay que reconstruir (`docker compose build database-runner`) o el runner aplica la versión anterior.
+
+## R-12 Runner de scripts versionados (SUSTITUIDO)
+> **Estrategia de despliegue sustituida (constitución v2.0.0)**: el esquema ya no se aplica con el runner de scripts de `database/`. Lo gestionan migraciones EF Core de las que `ms-control/Acity.Infrastructure` es único propietario, aplicadas automáticamente al iniciar ms-control antes de atender solicitudes; los demás servicios usan EF Core sin migraciones. Se conservan las reglas de negocio, el modelo de datos y los contratos de procedimientos. `database/` queda como implementación anterior fuera del flujo activo; `referencias/V001__esquema_inicial.sql` y `referencias/V002__procedimientos.sql` son la referencia de los mapeos EF, de la migración inicial y de los procedimientos (que se incorporarán mediante SQL dentro de las migraciones). Los detalles de las migraciones los define la feature de ms-control. Donde este documento diga "script", "runner" o `database/`, léase como diseño anterior.
+
+Lo siguiente documenta el diseño y la implementación anteriores, conservados como historial; no es el flujo activo.
 - **Único responsable**: un runner en `database/` (contenedor de un solo uso que Compose lanza antes de los microservicios).
 - **Evita ejecuciones simultáneas**: mantiene un cerrojo de aplicación de SQL Server (misma técnica que R-02, otro recurso) durante toda su sesión; las llamadas sucesivas a scripts se hacen dentro de **una sola sesión** para conservar el cerrojo.
 - **Orden y registro**: scripts `Vnnn__descripcion.sql` aplicados en orden; antes de cada uno consulta `SchemaMigraciones`; lo ya aplicado se omite; si el checksum de un aplicado cambió, falla (sin reescritura silenciosa); un script nuevo con número menor que el último aplicado también falla.
 - **Script fallido**: cada script corre en una transacción con `XACT_ABORT` y sale con código de error (`-b`); la transacción se revierte, no se registra como aplicado, el runner termina con error y los servicios dependientes no arrancan; reejecutar reintenta ese script desde el principio.
 - Cada script empieza con `SET QUOTED_IDENTIFIER ON` (R-11).
-- Detalles por definir en tasks: creación de la base si no existe y manejo de secretos.
+- Implementado en `database/run-scripts.sh` con `database/bootstrap.sql` (crea la base y `SchemaMigraciones` de forma idempotente, antes de consultar lo aplicado; V001 no crea `SchemaMigraciones`). Los scripts pendientes se encadenan en un único archivo maestro con `:on error exit` y cada uno entre `BEGIN TRANSACTION`/`COMMIT`; el registro en `SchemaMigraciones` va dentro de la transacción del script. Secretos: solo `MSSQL_SA_PASSWORD` por variable de entorno (`.env` fuera de Git).
 
 ## R-13 Alcance del modelo
 Justificación tabla por tabla en `data-model.md`. Cambios: se elimina `UsuarioRol` (sin requisito de varios roles); se añaden `PeriodoReservado` (necesaria para el índice filtrado) e `IntentosProceso` (acota la recuperación); ambas aceptadas por el usuario con esas responsabilidades y sin mecanismos nuevos. Sin tablas preventivas. El resultado de periodo incorpora `NoProcesado` (decisión de no afirmar que los periodos pendientes fallaron).
+
+## R-14 Gestión del esquema con EF Core Migrations (Dec)
+- **Decisión**: `ms-control/Acity.Infrastructure` es el único propietario de las migraciones de toda la base compartida y las aplica automáticamente al iniciar ms-control, antes de atender solicitudes. Los demás servicios mapean con EF Core sin generar ni aplicar migraciones.
+- **Referencias**: `referencias/V001__esquema_inicial.sql` y `referencias/V002__procedimientos.sql` (no se ejecutan) orientan los mapeos y la migración inicial; los procedimientos se incorporan mediante SQL dentro de las migraciones. El historial de migraciones lo lleva EF Core, por lo que `SchemaMigraciones` deja de ser parte del modelo.
+- **Pendiente para la feature de ms-control (sin verificar aquí)**: cómo expresar en migraciones el índice filtrado, la collation `Latin1_General_100_CI_AS_WS`, los CHECK y los procedimientos; el comportamiento de `GO` en SQL embebido; la concurrencia si hay más de una instancia de ms-control; y el orden de arranque respecto de los demás servicios.
 
 ## Abiertos
 Resueltos por decisión del usuario: precisión y longitudes (R-08), fallo terminal (R-03), duplicados con ganador revertido (R-05), "espacios" (R-07), archivo ilegible (R-03), notificaciones no publicadas (feature del servicio que publica), hash (R-10), `IntentosProceso` y `PeriodoReservado` (R-13) y condición de la collation (R-07).
 
 Quedan, sin bloquear la creación de la base:
 1. Eliminación de `UsuarioRol` (un rol por usuario): propuesta del plan; el usuario no la ha confirmado de forma explícita.
-2. Nombre exacto de la collation (`Latin1_General_100_CI_AS_WS`): verificar en documentación al escribir el script.
-3. Verificación operativa de Docker/SQL Server (R-11) y equipo de evaluación: se hace en la implementación.
+2. Equipo de evaluación: se desconoce; el motor amd64 corre emulado en Apple silicon (R-11) y su soporte no está respaldado por Microsoft.
+
+Resuelto en la implementación: el nombre `Latin1_General_100_CI_AS_WS` está verificado en la documentación oficial ("Windows collation name": `CI` = no distingue mayúsculas, `AS` = sensible a acentos; omitir `WS` = insensible al ancho, `WS` = sensible al ancho; orden `CI_AS_[KS]_[WS]`) y SQL Server lo aceptó al crear la columna.

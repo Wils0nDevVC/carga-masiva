@@ -1,5 +1,7 @@
 # Contratos de persistencia
 
+> Los procedimientos se conservan y se incorporarán mediante SQL dentro de las migraciones EF Core de ms-control (referencia: `referencias/V002__procedimientos.sql`).
+
 Esta feature no define endpoints. Los contratos son: dos procedimientos almacenados, el cerrojo de exclusividad del consumidor y el almacenamiento de identidad. Descripción de responsabilidades, no SQL. Diseño del plan; solo el hash y las columnas `IntentosProceso`/`PeriodoReservado` están aceptados.
 
 ## Regla común sobre transacciones
@@ -56,5 +58,5 @@ Esta feature no define endpoints. Los contratos son: dos procedimientos almacena
 
 - `Usuario(Email, PasswordHash, RolId)`; el hash lo genera ms-autenticacion con `PasswordHasher` de ASP.NET Core Identity (sin PBKDF2 manual) y se guarda como una sola cadena autodescriptiva. Sin texto plano ni cifrado reversible. Esta feature solo define el almacenamiento.
 - Inicialización de los usuarios de demostración al arrancar: lee credenciales de configuración externa; crea el usuario solo si no existe (clave: Email); **nunca sobrescribe** una contraseña existente; es repetible.
-- Los roles Administrador y Operador son datos de referencia sin secretos y los inserta el script inicial.
+- Los roles Administrador y Operador son datos de referencia sin secretos y los inserta la migración inicial.
 - La longitud de salida del hash se confirma en la feature de Autenticación (`VARCHAR(255)` es la cota propuesta).

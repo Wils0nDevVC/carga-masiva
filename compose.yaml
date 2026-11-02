@@ -1,0 +1,26 @@
+name: carga-masiva
+
+# El esquema lo aplicarán migraciones EF Core desde ms-control al iniciar (pendiente de esa feature);
+# ms-control aún no está en este archivo. El runner de database/ se retiró de Compose.
+services:
+  sqlserver:
+    image: mcr.microsoft.com/mssql/server:2022-CU27-ubuntu-22.04
+    # Las imagenes de SQL Server son amd64; en Apple silicon corre emulada (Microsoft no la soporta
+    # oficialmente; ver specs/001-persistencia-integridad-carga/research.md R-11).
+    platform: linux/amd64
+    environment:
+      ACCEPT_EULA: "Y"
+      MSSQL_SA_PASSWORD: ${MSSQL_SA_PASSWORD:?Defina MSSQL_SA_PASSWORD en .env (ver .env.example)}
+    ports:
+      - "${SQLSERVER_HOST_PORT:-14333}:1433"
+    volumes:
+      - sqlserver-data:/var/opt/mssql
+    healthcheck:
+      test: ["CMD-SHELL", "SQLCMDPASSWORD=\"$$MSSQL_SA_PASSWORD\" /opt/mssql-tools18/bin/sqlcmd -C -S localhost -U sa -b -Q 'SELECT 1' >/dev/null"]
+      interval: 10s
+      timeout: 5s
+      retries: 30
+      start_period: 40s
+
+volumes:
+  sqlserver-data:

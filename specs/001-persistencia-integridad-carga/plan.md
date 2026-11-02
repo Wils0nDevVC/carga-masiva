@@ -4,6 +4,8 @@
 
 **Input**: Feature specification from `specs/001-persistencia-integridad-carga/spec.md`
 
+> **Estrategia de despliegue sustituida (constitución v2.0.0)**: el esquema ya no se aplica con el runner de scripts de `database/`. Lo gestionan migraciones EF Core de las que `ms-control/Acity.Infrastructure` es único propietario, aplicadas automáticamente al iniciar ms-control antes de atender solicitudes; los demás servicios usan EF Core sin migraciones. Se conservan las reglas de negocio, el modelo de datos y los contratos de procedimientos. `database/` queda como implementación anterior fuera del flujo activo; `referencias/V001__esquema_inicial.sql` y `referencias/V002__procedimientos.sql` son la referencia de los mapeos EF, de la migración inicial y de los procedimientos (que se incorporarán mediante SQL dentro de las migraciones). Los detalles de las migraciones los define la feature de ms-control. Donde este documento diga "script", "runner" o `database/`, léase como diseño anterior.
+
 **Procedencia**: `Req` = README; `Dec` = decisión del usuario; `Prop` = propuesta de este plan, **no aprobada** hasta que el usuario la confirme (las aceptadas se indican como `Dec`). El README no es fuente de ninguna decisión marcada `Dec`.
 
 ## Summary
@@ -17,13 +19,13 @@ Se define el soporte de persistencia en SQL Server para los cuatro microservicio
 - **Un solo consumidor activo** garantizado por un cerrojo de aplicación de SQL Server, con recuperación previa al consumo, acotada por `IntentosProceso`. [Dec + Prop]
 - Matriz de transiciones con historial; error transitorio ≠ fallo terminal. [Dec]
 
-Entrega **solo documentación de diseño**; los scripts, el runner, el consumidor y Autenticación se producen en sus features.
+Entrega **solo documentación de diseño**; los scripts y el runner de `database/` son la implementación anterior (sustituida); las migraciones, el consumidor y Autenticación se producen en sus features.
 
 ## Technical Context
 
 **Language/Version**: T-SQL para `database/`; C# / .NET 10 en los consumidores del modelo (fuera de esta feature). [Dec]
 
-**Primary Dependencies**: Microsoft.EntityFrameworkCore.SqlServer 10.x; compatibilidad y licencia **sin verificar** en esta sesión (verificar antes de implementar). Sin Dapper, sin EF Migrations, sin BulkExtensions. [Dec]
+**Primary Dependencies**: Microsoft.EntityFrameworkCore.SqlServer 10.x; compatibilidad y licencia **sin verificar** en esta sesión (verificar antes de implementar). Sin Dapper, sin BulkExtensions. Las migraciones EF Core las administra solo ms-control. [Dec]
 
 **Storage**: SQL Server. Versión propuesta (Prop): 2022, porque las imágenes ya existen en el equipo y hay un contenedor 2022 en ejecución en este Docker; la constitución no fija versión; 2025 no se evaluó.
 
@@ -33,18 +35,18 @@ Entrega **solo documentación de diseño**; los scripts, el runner, el consumido
 
 **Project Type**: Monorepo de microservicios; esta feature afecta a `database/` y fija el modelo que consumirán `ms-autenticacion/`, `ms-control/`, `ms-carga-masiva/` y `ms-notificaciones/`; `api-gateway/` no cambia. [Dec]
 
-**Performance Goals**: No definidos. **Constraints**: un único responsable de esquema; sin contraseñas en scripts; sin binario del Excel en la base. **Scale/Scope**: mínimo para el examen; sin límites deducidos del Excel.
+**Performance Goals**: No definidos. **Constraints**: un único responsable de esquema (ms-control, vía migraciones); sin contraseñas en scripts ni migraciones; sin binario del Excel en la base. **Scale/Scope**: mínimo para el examen; sin límites deducidos del Excel.
 
 ## Constitution Check
 
-*GATE: antes de Phase 0 y tras Phase 1.* Constitución v1.3.0.
+*GATE: antes de Phase 0 y tras Phase 1.* Constitución v2.0.0.
 
 | Principio | Verificación | Resultado |
 |---|---|---|
 | §1 Alcance | Propuestas marcadas `Prop`; sin tablas preventivas; pendientes visibles | Pasa |
 | §2 Organización | Cambios solo en `database/`; sin Git ni Spec Kit por componente | Pasa |
 | §3–4 Plataforma y capas | Sin proyectos ni capas; entidades como clases cuando se implementen | Pasa |
-| §6 Persistencia | SQL Server; EF Core/LINQ; scripts versionados con registro; único responsable; 2 SPs conforme al README; sin Dapper; sin contraseñas en scripts | Pasa |
+| §6 Persistencia | SQL Server; EF Core/LINQ; migraciones EF Core con ms-control como único propietario y aplicación automática al iniciar; 2 SPs conforme al README incorporados por SQL en migraciones; sin Dapper; sin contraseñas en scripts ni migraciones | Pasa |
 | §6 Identidad | Identidad propia; roles; hash; creación repetible por ms-autenticacion | Pasa |
 | §7 Reglas | Unicidad global; sin llave compuesta; atomicidad por periodo; disponibilidad por resultado; orden original; normalización de código | Pasa |
 | §7 Precisión y longitudes | Fila omitida con motivo si no cabe exactamente; sin redondeo ni truncamiento | Pasa |
@@ -75,7 +77,7 @@ specs/001-persistencia-integridad-carga/
 
 ### Source Code (repository root)
 
-Solo `database/` (se crea en `/speckit-tasks`/implementación; nombres de archivo provisionales; el runner se diseña pero no se implementa aquí):
+Implementación anterior en `database/` (fuera del flujo activo; se conserva sin eliminar). El esquema activo se materializará con migraciones EF Core en `ms-control/Acity.Infrastructure` (feature de ms-control):
 
 ```text
 database/
@@ -86,15 +88,15 @@ database/
 └── Dockerfile                           # imagen del runner
 ```
 
-`compose.yaml` (raíz, hoy vacío) declarará SQL Server y el runner. `ms-*` y `api-gateway` no cambian en esta feature.
+`compose.yaml` (raíz) declara solo SQL Server; el servicio del runner se retiró y ms-control no se agrega hasta que esté implementado. `ms-*` y `api-gateway` no cambian en esta feature.
 
-**Structure Decision**: Un directorio `database/` con scripts numerados y un runner propio de un solo uso; sin proyecto .NET de migraciones.
+**Structure Decision** (sustituida): inicialmente `database/` con scripts numerados y un runner propio; ahora migraciones EF Core de ms-control (el proyecto lo define su feature). `database/` queda como referencia histórica.
 
 ## Complexity Tracking
 
 | Elemento | Por qué es necesario | Alternativa más simple rechazada porque |
 |---|---|---|
-| Runner de scripts propio | Único responsable, ejecución automática y registro de aplicados [Dec] | Que cada servicio aplique scripts rompe "único responsable"; EF Migrations está prohibido |
+| ~~Runner de scripts propio~~ → migraciones EF Core de ms-control (sustituido) | Único responsable, ejecución automática y registro de aplicados [Dec] | Que cada servicio genere o aplique migraciones rompe "único responsable" |
 | 2 procedimientos almacenados | Operaciones multi-sentencia atómicas (reserva; estado + historial) y requisito de SPs [Req] | Hacerlo solo en aplicación incumple el README y expone carreras |
 | `CargaPeriodo` separada de `CargaArchivo` | Resultado de periodo ≠ estado de la carga [Dec] | Derivar del estado del archivo está prohibido |
 | `PeriodoReservado` (columna extra, aceptada) | El índice filtrado solo admite comparaciones simples | Filtrar con `IN`/`OR` no está confirmado por la documentación |

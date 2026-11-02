@@ -1,19 +1,22 @@
 # Quickstart: validación manual del modelo de persistencia
 
-Guía de verificación manual (sin pruebas automatizadas) para cuando existan los scripts, el runner y los consumidores. Modelo: [data-model.md](data-model.md); contratos: [contracts/procedimientos-almacenados.md](contracts/procedimientos-almacenados.md); mecanismos: [research.md](research.md). A la fecha **no existen** scripts ni runner, y Docker/SQL Server **no se ha verificado** de extremo a extremo (research R-11).
+Guía de verificación manual (sin pruebas automatizadas) para cuando existan las migraciones de ms-control y los consumidores. **Estrategia de despliegue sustituida**: el runner de `database/` ya no es el flujo activo; el esquema lo aplican migraciones EF Core al iniciar ms-control (feature pendiente; ver research R-14). Modelo: [data-model.md](data-model.md); contratos: [contracts/procedimientos-almacenados.md](contracts/procedimientos-almacenados.md); mecanismos: [research.md](research.md). A la fecha ms-control y sus migraciones **no existen**; Docker/SQL Server solo se verificó con el runner anterior (research R-11).
 
 ## Prerrequisitos
-- Docker con SQL Server (imagen amd64; en Apple silicon, con emulación: ver R-11) y el runner definidos en `compose.yaml` (hoy vacío).
-- Cliente SQL para consultar tablas.
-- Credenciales iniciales por variables de entorno, nunca en scripts.
+- Docker con SQL Server (imagen amd64; en Apple silicon, con emulación: ver R-11), definido en `compose.yaml`. El servicio del runner se retiró; ms-control aún no está en Compose.
+- Copiar `.env.example` a `.env` y definir `MSSQL_SA_PASSWORD` (política de complejidad de SQL Server); nunca versionar `.env`.
+- Levantar el motor: `docker compose up -d sqlserver`. Puerto del host: `SQLSERVER_HOST_PORT` (14333 por defecto). El esquema lo creará ms-control al iniciar (pendiente de su feature).
+- Consultar: `docker compose exec sqlserver /opt/mssql-tools18/bin/sqlcmd -C -I -S localhost -U sa -d CargaMasiva` (pide la contraseña con `-P` o `SQLCMDPASSWORD`).
+
+**Verificado el 2-nov-2026 con el runner anterior** (solo la base; sin consumidor; hay que repetirlo con las migraciones de ms-control): escenarios 1, 2, 3, 5, 6, 7, 8, 9, 14 (parte de base), 20 (parte de base) y 27, y el 25 solo en lo que concierne a la base (redondea en silencio; la omisión la hace la aplicación). Los escenarios 4, 10–13, 15–19, 21–24 dependen de ms-autenticacion, del consumidor o de Control y **no se han verificado**.
 
 ## Escenarios
 
 | # | Acción | Resultado esperado | Spec |
 |---|---|---|---|
-| 1 | Levantar con base vacía y revisar `SchemaMigraciones` | Scripts aplicados una vez con checksum; si un script falla, queda sin registrar y los servicios no arrancan | Constitución §6 |
-| 2 | Reiniciar el runner / lanzar dos runners a la vez | No reaplica; el segundo espera o falla sin ejecutar | R-12 |
-| 3 | Revisar tablas | 8 tablas; sin columna binaria del Excel; sin contraseñas en `database/` | FR-007, SC-007 |
+| 1 | Iniciar ms-control con base vacía y revisar `__EFMigrationsHistory` | Migraciones aplicadas una vez antes de atender solicitudes; si una falla, ms-control no atiende (pendiente de la feature de ms-control) | Constitución §6, R-14 |
+| 2 | Reiniciar ms-control | No reaplica migraciones ya aplicadas (pendiente de la feature de ms-control) | R-14 |
+| 3 | Revisar tablas | 8 tablas; sin columna binaria del Excel; sin contraseñas en scripts ni migraciones | FR-007, SC-007 |
 | 4 | Revisar roles y usuarios iniciales; reiniciar `ms-autenticacion` | Un usuario por rol con hash; sin duplicados ni contraseñas sobrescritas | FR-001–005 |
 | 5 | Reservar periodo con previa Completado / con previa Admitido | Rechazado / Bloqueado, con incidencia y sin reserva | US2-2,3 |
 | 6 | Reservar de nuevo desde la misma carga | Mismo resultado, sin filas nuevas | US2-4, US5-5 |

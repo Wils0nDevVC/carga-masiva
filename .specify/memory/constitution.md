@@ -1,7 +1,13 @@
 <!--
 Sync Impact Report
-- Versión: 1.2.0 → 1.3.0 (MINOR: tratamiento de precisión y longitudes, fallo terminal de un
-  periodo, duplicados con ganador revertido, Trim de CodigoProducto, hash en autenticación)
+- Versión: 1.3.0 → 2.0.0 (MAJOR: se invierte la regla de §6 que prohibía EF Core Migrations y
+  exigía scripts SQL versionados con runner; el esquema pasa a migraciones EF Core administradas
+  desde ms-control, con propietario único y aplicación automática al iniciar)
+- Principios modificados en 2.0.0: §2 (descripción de `database/`), §6 (gestión del esquema),
+  Pendientes (arranque por migraciones pendiente de la feature de ms-control). Resto sin cambios;
+  la fecha de ratificación sigue pendiente.
+- Cambios 1.3.0 (referencia): tratamiento de precisión y longitudes, fallo terminal de un
+  periodo, duplicados con ganador revertido, Trim de CodigoProducto, hash en autenticación.
 - Cambios 1.2.0 (referencia): normalización de CodigoProducto, matriz de transiciones,
   consumidor único con recuperación, responsabilidades de Polly y de usuarios iniciales.
 - Principios modificados en 1.3.0: §6 (hash con PasswordHasher de ASP.NET Core Identity), §7
@@ -38,7 +44,7 @@ Sync Impact Report
 - Monorepo bajo `carga-masiva/`, con un único Git y un único Spec Kit en la raíz. [Decisión]
 - Una constitución común; especificaciones, planes y tareas acotados por componente. [Decisión]
 - Directorios contenedores en la raíz: `api-gateway/` (API Gateway con Ocelot), `database/`
-  (scripts SQL versionados), `ms-autenticacion/` (autenticación y emisión de JWT),
+  (implementación anterior de scripts SQL; fuera del flujo activo), `ms-autenticacion/` (autenticación y emisión de JWT),
   `ms-control/` (recepción de archivos y seguimiento de cargas), `ms-carga-masiva/`
   (procesamiento masivo del Excel) y `ms-notificaciones/` (envío de correos). [Decisión]
 - Estos nombres identifican los directorios contenedores; los proyectos internos mantienen los
@@ -88,14 +94,16 @@ Sync Impact Report
 
 ### 6. Persistencia
 - SQL Server; EF Core y LINQ en Infrastructure; sin Dapper. [README §4 y §5] [Decisión]
-- Esquema gestionado con scripts SQL versionados en `database/`, sin EF Core Migrations.
-  [Decisión]
-- Modelado inicial integral y un script inicial que materialice el esquema aprobado. [Decisión]
-- Aplicación automática de scripts pendientes con registro de los aplicados para no repetirlos
+- Esquema gestionado con EF Core Migrations. `ms-control/Acity.Infrastructure` es el único
+  propietario de las migraciones de toda la base SQL Server compartida; los demás microservicios
+  usan EF Core sin generar ni aplicar migraciones. [Decisión]
+- Modelado inicial integral y una migración inicial que materialice el esquema aprobado; los
+  scripts de `referencias/` sirven de referencia para los mapeos y esa migración. [Decisión]
+- Las migraciones se aplican automáticamente al iniciar ms-control, antes de atender solicitudes
   (migraciones automáticas). [README §4] [Decisión]
-- Un único responsable aplica los cambios de esquema. [Decisión]
+- Un único responsable aplica los cambios de esquema: ms-control. [Decisión]
 - Procedimientos almacenados conforme al README; sus responsabilidades se delimitan en el plan.
-  [README §4] [Decisión]
+  Se conservan y se incorporan mediante SQL dentro de las migraciones. [README §4] [Decisión]
 - Identidad propia persistida en SQL Server; sin proveedores externos de identidad. Se persisten
   usuarios, roles y su asociación, sin motor genérico de permisos. [Decisión]
 - Roles: Administrador (carga archivos; consulta todas las cargas y sus incidencias) y Operador
@@ -104,7 +112,7 @@ Sync Impact Report
   cifrado reversible. El hash lo genera ms-autenticacion con `PasswordHasher` de ASP.NET Core
   Identity, sin implementar PBKDF2 manualmente; la base solo define su almacenamiento. [Decisión]
 - Un usuario inicial por rol para la demostración, con credenciales suministradas por
-  configuración externa; MUST NOT haber contraseñas en scripts versionados. Su creación al
+  configuración externa; MUST NOT haber contraseñas en scripts ni migraciones versionados. Su creación al
   arrancar corresponde a ms-autenticacion: repetible sin duplicar usuarios y sin sobrescribir
   contraseñas existentes. [Decisión]
 - En la etapa de constitución MUST NOT crearse tablas, columnas, índices ni procedimientos
@@ -256,7 +264,8 @@ sin resultado y serialización de `Response<T>`; rotación y retención de logs;
 Polly (se fijan en las features de Control, Carga Masiva y Notificaciones); tratamiento operativo
 de archivos ilegibles y recuperación de notificaciones no publicadas (features del servicio
 que corresponda); límites de tamaño de archivo; contenido exacto del correo; React; verificación
-operativa de Docker y SQL Server en el equipo de ejecución (no bloquea la creación de la base). Refresh tokens es opcional en el
+operativa de Docker y SQL Server en el equipo de ejecución; el arranque de ms-control con
+migraciones queda pendiente de su feature. Refresh tokens es opcional en el
 README y no está decidido.
 No se adoptan las convenciones de idioma, commits ni versionado de endpoints del ejemplo Bistro.
 
@@ -267,4 +276,4 @@ eliminaciones incompatibles; MINOR por principios o secciones nuevas; PATCH por 
 Toda especificación, plan y tarea MUST verificar cumplimiento de esta constitución, indicar la
 procedencia de cada obligación y justificar cualquier complejidad añadida.
 
-**Version**: 1.3.0 | **Ratified**: TODO(RATIFICATION_DATE): pendiente de aprobación del usuario | **Last Amended**: 2026-11-02
+**Version**: 2.0.0 | **Ratified**: TODO(RATIFICATION_DATE): pendiente de aprobación del usuario | **Last Amended**: 2026-11-02

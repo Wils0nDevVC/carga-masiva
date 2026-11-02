@@ -13,7 +13,7 @@ Modelo lógico/físico propuesto por el plan; `IntentosProceso`, `PeriodoReserva
 | CargaPeriodo | Resultado por periodo separado del estado de la carga; base de la reserva y de la protección de concurrencia | Dec; spec FR-008, FR-014 |
 | Producto | Productos aceptados con unicidad global de código | Req (README §3) |
 | Incidencia | Fallidos, existentes y errores técnicos persistentes | Req (README §3); spec FR-033, FR-034 |
-| SchemaMigraciones | Registro de scripts aplicados (único responsable) | Req (README §4 migraciones); Dec |
+| ~~SchemaMigraciones~~ | Registro del runner anterior; **sustituida** por el historial de migraciones de EF Core (`__EFMigrationsHistory`, administrado por EF; no es tabla del modelo) | Dec (migraciones EF Core desde ms-control) |
 
 Cambio frente a la versión anterior del plan: **se elimina `UsuarioRol`**. Ningún requisito exige varios roles por usuario; `Usuario.RolId` basta para "persistir usuarios, roles y su asociación". Si se aprueba más de un rol por usuario, se restituye una tabla puente.
 
@@ -23,7 +23,7 @@ Cambio frente a la versión anterior del plan: **se elimina `UsuarioRol`**. Ning
 Rol 1──N Usuario 1──N CargaArchivo 1──N CargaEstadoHistorial
 CargaArchivo 1──N CargaPeriodo 1──N Producto
 CargaArchivo 1──N Incidencia ; CargaPeriodo 1──N Incidencia (opcional)
-SchemaMigraciones (técnica; sin relaciones)
+SchemaMigraciones (sustituida; ver nota en la tabla de tablas)
 ```
 
 ## Campos
@@ -72,6 +72,8 @@ SchemaMigraciones (técnica; sin relaciones)
 | SchemaMigraciones.Checksum | CHAR(64) | No | Detecta scripts aplicados que cambiaron | Prop |
 | SchemaMigraciones.FechaAplicado | DATETIME2 | No | | Prop |
 
+Las tres filas `SchemaMigraciones.*` describen el runner anterior y ya no forman parte del modelo activo.
+
 Sin tamaños ilimitados (`MAX`): ningún campo lo necesita. Sin columna binaria del Excel.
 
 ## Restricciones e índices
@@ -80,7 +82,7 @@ Sin tamaños ilimitados (`MAX`): ningún campo lo necesita. Sin columna binaria 
 - `CargaArchivo(UsuarioId, FechaRecepcion)`: consulta del Operador sobre sus cargas.
 - `CargaEstadoHistorial(CargaId, Id)`; `Incidencia(CargaId, Id)`.
 - `CargaPeriodo`: UNIQUE `(CargaId, Periodo)` (un resultado por periodo y carga; idempotencia).
-- **Índice único filtrado** `CargaPeriodo(PeriodoReservado) WHERE PeriodoReservado IS NOT NULL`, más un CHECK que ata el campo al resultado: `(Resultado IN ('Admitido','Completado') AND PeriodoReservado = Periodo) OR (Resultado NOT IN ('Admitido','Completado') AND PeriodoReservado IS NULL)`.
+- **Índice único filtrado** `CargaPeriodo(PeriodoReservado) WHERE PeriodoReservado IS NOT NULL`, más un CHECK que ata el campo al resultado: `(Resultado IN ('Admitido','Completado') AND PeriodoReservado IS NOT NULL AND PeriodoReservado = Periodo) OR (Resultado NOT IN ('Admitido','Completado') AND PeriodoReservado IS NULL)`.
   - Protege exactamente los resultados que reservan el periodo: solo Admitido y Completado tienen valor; Rechazado, Bloqueado, Fallido y NoProcesado tienen NULL y quedan fuera del índice.
   - Por qué no `WHERE Resultado IN (...)`: la documentación oficial indica que los índices filtrados admiten solo comparaciones simples y que no pueden usar columnas calculadas en el filtro; no se pudo confirmar `IN`/`OR`, así que se evita. `IS NOT NULL` es una comparación simple admitida. Los filtros pueden aplicarse a índices con la propiedad UNIQUE, pero no a restricciones PK/UNIQUE (por eso es un índice, no una restricción).
   - Opciones `SET` de sesión: el filtrado exige las opciones de `CREATE INDEX` (la documentación remite a ellas). `sqlcmd` (ODBC) deja `QUOTED_IDENTIFIER` en OFF por defecto: los scripts MUST iniciar con `SET QUOTED_IDENTIFIER ON` (o usar `-I`). EF Core/SqlClient lo dejan en ON por defecto (no verificado en esta sesión).

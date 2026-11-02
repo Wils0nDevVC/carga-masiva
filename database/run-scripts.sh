@@ -1,0 +1,103 @@
+#!/usr/bin/env bash
+# Runner unico de scripts versionados (research R-12). Se ejecuta una vez por arranque.
+#  - Un solo responsable del esquema: aplica Vnnn__*.sql en orden y los registra en SchemaMigraciones.
+#  - Una sola sesion sqlcmd mantiene un cerrojo de aplicacion (sp_getapplock, Session, timeout 0).
+#  - Cada script corre en su propia transaccion con XACT_ABORT; si falla, sqlcmd sale con error
+#    (:on error exit), la conexion se cierra, SQL Server revierte y el script no queda registrado.
+#  - Falla si el checksum de un script aplicado cambio o si un script nuevo tiene numero menor
+#    que el ultimo aplicado.
+# Secretos: solo por variables de entorno (MSSQL_SA_PASSWORD), nunca en archivos.
+set -euo pipefail
+
+SQLCMD="${SQLCMD:-/opt/mssql-tools18/bin/sqlcmd}"
+DB_HOST="${DB_HOST:-sqlserver}"
+DB_PORT="${DB_PORT:-1433}"
+DB_USER="${DB_USER:-sa}"
+DB_NAME="${DB_NAME:-CargaMasiva}"
+SCRIPTS_DIR="${SCRIPTS_DIR:-/database/scripts}"
+BOOTSTRAP_SQL="${BOOTSTRAP_SQL:-/database/bootstrap.sql}"
+
+: "${MSSQL_SA_PASSWORD:?Defina MSSQL_SA_PASSWORD (variable de entorno)}"
+export SQLCMDPASSWORD="$MSSQL_SA_PASSWORD"   # evita pasar la contrasena como argumento
+
+if [[ ! "$DB_NAME" =~ ^[A-Za-z0-9_]+$ ]]; then
+  echo "DB_NAME invalido: solo letras, digitos y guion bajo." >&2; exit 2
+fi
+
+# -C: confia en el certificado autofirmado del contenedor; -b: salir con codigo de error;
+# -I: QUOTED_IDENTIFIER ON; -f 65001: scripts en UTF-8.
+run() { "$SQLCMD" -C -b -I -f 65001 -S "$DB_HOST,$DB_PORT" -U "$DB_USER" "$@"; }
+
+echo "Esperando a SQL Server en $DB_HOST:$DB_PORT ..."
+for i in $(seq 1 60); do
+  if run -d master -Q "SELECT 1" >/dev/null 2>&1; then break; fi
+  if [[ "$i" == 60 ]]; then echo "SQL Server no responde tras 60 intentos." >&2; exit 1; fi
+  sleep 2
+done
+
+echo "Bootstrap (base $DB_NAME y SchemaMigraciones) ..."
+run -d master -v DB_NAME="$DB_NAME" -i "$BOOTSTRAP_SQL"
+
+declare -A APPLIED=()
+last_applied=""
+while IFS='|' read -r name sum; do
+  [[ -z "${name:-}" ]] && continue
+  APPLIED["$name"]="$sum"
+  [[ "$name" > "$last_applied" ]] && last_applied="$name"
+done < <(run -d "$DB_NAME" -h -1 -W -Q "SET NOCOUNT ON; SELECT Script + '|' + Checksum FROM dbo.SchemaMigraciones ORDER BY Script")
+
+shopt -s nullglob
+files=("$SCRIPTS_DIR"/V[0-9][0-9][0-9]__*.sql)
+IFS=$'\n' files=($(printf '%s\n' "${files[@]}" | sort)); unset IFS
+
+pending=()
+for f in "${files[@]}"; do
+  name="$(basename "$f")"
+  sum="$(sha256sum "$f" | cut -d' ' -f1)"
+  if [[ -n "${APPLIED[$name]:-}" ]]; then
+    if [[ "${APPLIED[$name]}" != "$sum" ]]; then
+      echo "ERROR: el script aplicado $name cambio (checksum distinto). No se reescribe en silencio." >&2; exit 1
+    fi
+  else
+    if [[ -n "$last_applied" && "$name" < "$last_applied" ]]; then
+      echo "ERROR: $name tiene numero menor que el ultimo aplicado ($last_applied)." >&2; exit 1
+    fi
+    pending+=("$name|$sum")
+  fi
+done
+
+if [[ ${#pending[@]} -eq 0 ]]; then
+  echo "Sin scripts pendientes."; exit 0
+fi
+
+master="$(mktemp)"; trap 'rm -f "$master"' EXIT
+{
+  echo ":on error exit"
+  echo "SET XACT_ABORT ON;"
+  echo "SET QUOTED_IDENTIFIER ON;"
+  echo "GO"
+  echo "DECLARE @r INT;"
+  echo "EXEC @r = sys.sp_getapplock @Resource = N'carga-masiva:database-runner', @LockMode = 'Exclusive', @LockOwner = 'Session', @LockTimeout = 0;"
+  echo "IF @r < 0 THROW 50001, N'Otro runner mantiene el cerrojo de scripts.', 1;"
+  echo "GO"
+  for item in "${pending[@]}"; do
+    name="${item%%|*}"; sum="${item##*|}"
+    echo "IF EXISTS (SELECT 1 FROM dbo.SchemaMigraciones WHERE Script = N'$name') THROW 50002, N'$name ya fue aplicado por otro runner; reintente.', 1;"
+    echo "GO"
+    echo "BEGIN TRANSACTION;"
+    echo "GO"
+    echo ":r $SCRIPTS_DIR/$name"
+    echo ""
+    echo "GO"
+    echo "INSERT INTO dbo.SchemaMigraciones (Script, Checksum, FechaAplicado) VALUES (N'$name', '$sum', SYSUTCDATETIME());"
+    echo "GO"
+    echo "COMMIT TRANSACTION;"
+    echo "GO"
+    echo "PRINT N'Aplicado: $name';"
+    echo "GO"
+  done
+} > "$master"
+
+echo "Aplicando ${#pending[@]} script(s) en una sola sesion ..."
+run -d "$DB_NAME" -i "$master"
+echo "Listo."
