@@ -130,6 +130,27 @@ services:
     healthcheck: *app-healthcheck
     restart: "no"
 
+  api-gateway:
+    build:
+      context: ./api-gateway
+    image: carga-masiva-api-gateway:local
+    depends_on:
+      ms-autenticacion:
+        condition: service_healthy
+      ms-control:
+        condition: service_healthy
+    environment:
+      ASPNETCORE_ENVIRONMENT: Production
+      Jwt__Clave: ${JWT_CLAVE:?Defina JWT_CLAVE en .env (ver .env.example)}
+      Jwt__Emisor: ${JWT_EMISOR:-ms-autenticacion}
+      Jwt__Audiencia: ${JWT_AUDIENCIA:-carga-masiva}
+    ports:
+      - "8080:8080"
+    volumes:
+      - logs-gateway:/app/logs
+    healthcheck: *app-healthcheck
+    restart: "no"
+
   ms-carga-masiva:
     build:
       context: ./ms-carga-masiva
@@ -204,3 +225,4 @@ volumes:
   logs-autenticacion:
   logs-carga-masiva:
   logs-notificaciones:
+  logs-gateway:

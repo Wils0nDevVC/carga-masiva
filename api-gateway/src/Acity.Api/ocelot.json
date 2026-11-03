@@ -1,0 +1,54 @@
+{
+  "Routes": [
+    {
+      "UpstreamPathTemplate": "/cargas",
+      "UpstreamHttpMethod": [
+        "Post"
+      ],
+      "DownstreamScheme": "http",
+      "DownstreamHostAndPorts": [
+        {
+          "Host": "ms-control",
+          "Port": 8080
+        }
+      ],
+      "DownstreamPathTemplate": "/cargas",
+      "AuthenticationOptions": {
+        "AuthenticationProviderKeys": [
+          "Bearer"
+        ]
+      }
+    },
+    {
+      "UpstreamPathTemplate": "/auth/login",
+      "UpstreamHttpMethod": [
+        "Post"
+      ],
+      "DownstreamScheme": "http",
+      "DownstreamHostAndPorts": [
+        {
+          "Host": "ms-autenticacion",
+          "Port": 8080
+        }
+      ],
+      "DownstreamPathTemplate": "/auth/login"
+    },
+    {
+      "UpstreamPathTemplate": "/auth/refresh",
+      "UpstreamHttpMethod": [
+        "Post"
+      ],
+      "DownstreamScheme": "http",
+      "DownstreamHostAndPorts": [
+        {
+          "Host": "ms-autenticacion",
+          "Port": 8080
+        }
+      ],
+      "DownstreamPathTemplate": "/auth/refresh"
+    }
+  ],
+  "GlobalConfiguration": {
+    "BaseUrl": "http://localhost:8080"
+  }
+}
