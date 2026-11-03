@@ -42,7 +42,8 @@ OPERADOR_CLAVE=Cme1cac81b3d4663e3aA1!
 ```
 
 ### Frontend
-- Directorio en la raíz: ```/cargamasiva_front``` (React, TypeScript y Vite). Se levanta con el mismo ```docker compose up -d --build``` como el servicio ```frontend```.
+- Directorio en la raíz: ```/cargamasiva_front``` (React, TypeScript y Vite).
+- Si ejecutó ```docker compose up -d --build``` este ya quedo levantado.
 - Se abre en:
 ```
 http://localhost:3000
