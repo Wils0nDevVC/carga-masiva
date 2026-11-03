@@ -65,7 +65,7 @@ Borrar solo los archivos y correos de esta prueba, eliminar `CargaMasivaApp_F010
 | 14 | `/cargas`, `/cargas/1`, `/cargas/999999` y `/cargas/1/contenido`: mismos estados y cuerpos a través del Gateway y directo. Abierto 3 confirmado: Ocelot distingue `/cargas/{id}` de `/cargas/{id}/contenido` sin `Priority` |
 | 15 | 2136 líneas de log de Control y del Gateway (contenedor y archivo): 0 tokens, 0 valores de celda, 0 contraseñas o `JWT_CLAVE` y 0 `Bearer ` |
 
-**Abierto 2**: verificado en la verificación complementaria (ver abajo), con dos hallazgos pendientes de decisión.
+**Abierto 2**: verificado en la verificación complementaria (ver abajo). Sus dos hallazgos (texto de los errores de fórmula y fórmulas sin resultado guardado) quedaron resueltos por decisión del usuario y verificados (ver "Ajuste de fórmulas").
 
 ### Cierre (T023)
 
