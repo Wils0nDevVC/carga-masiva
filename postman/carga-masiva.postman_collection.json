@@ -1,0 +1,282 @@
+{
+  "info": {
+    "_postman_id": "d3920952-1169-41bc-b304-def0a068689f",
+    "name": "Carga masiva (Gateway)",
+    "description": "Peticiones del reto contra el API Gateway (http://localhost:8080 en Compose). Todas las respuestas usan Response<T>: data, isSuccess, message, code, errors. Ver postman/README.md.",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "auth": {
+    "type": "bearer",
+    "bearer": [
+      {
+        "key": "token",
+        "value": "{{accessToken}}",
+        "type": "string"
+      }
+    ]
+  },
+  "item": [
+    {
+      "name": "Autenticación",
+      "item": [
+        {
+          "name": "Login",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/auth/login",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "auth",
+                "login"
+              ]
+            },
+            "description": "Credenciales del usuario inicial (variables email y password del entorno). Guarda accessToken (60 min) y refreshToken (1 h, rota en cada uso). Credenciales inválidas → 401 genérico.",
+            "auth": {
+              "type": "noauth"
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"{{email}}\",\n  \"password\": \"{{password}}\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "// Guarda los tokens del par recibido (login o refresh) en el entorno activo.",
+                  "const r = pm.response.json();",
+                  "pm.test('Respuesta 200 con tokens', () => { pm.response.to.have.status(200); pm.expect(r.isSuccess).to.be.true; });",
+                  "if (r.isSuccess && r.data) {",
+                  "  pm.environment.set('accessToken', r.data.accessToken);",
+                  "  pm.environment.set('refreshToken', r.data.refreshToken);",
+                  "}"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Refresh",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/auth/refresh",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "auth",
+                "refresh"
+              ]
+            },
+            "description": "Renueva el par con el refreshToken guardado. El refresh token usado queda invalidado (reusarlo → 401). Guarda el par nuevo.",
+            "auth": {
+              "type": "noauth"
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"refreshToken\": \"{{refreshToken}}\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "// Guarda los tokens del par recibido (login o refresh) en el entorno activo.",
+                  "const r = pm.response.json();",
+                  "pm.test('Respuesta 200 con tokens', () => { pm.response.to.have.status(200); pm.expect(r.isSuccess).to.be.true; });",
+                  "if (r.isSuccess && r.data) {",
+                  "  pm.environment.set('accessToken', r.data.accessToken);",
+                  "  pm.environment.set('refreshToken', r.data.refreshToken);",
+                  "}"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "Cargas",
+      "item": [
+        {
+          "name": "Subir Excel",
+          "request": {
+            "method": "POST",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/cargas",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "cargas"
+              ]
+            },
+            "description": "Sube un único .xlsx (campo 'archivo', máximo 10 MiB). Requiere token (Administrador u Operador). Respuesta 202 con idCarga, que se guarda en el entorno. Límite: 10 subidas por minuto por usuario (429).",
+            "body": {
+              "mode": "formdata",
+              "formdata": [
+                {
+                  "key": "archivo",
+                  "type": "file",
+                  "src": [],
+                  "description": "Seleccione el Excel local (Select Files)"
+                }
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const r = pm.response.json();",
+                  "pm.test('Carga registrada (202)', () => pm.response.to.have.status(202));",
+                  "if (r.isSuccess && r.data) { pm.environment.set('idCarga', r.data.idCarga); }"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Historial de cargas",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/cargas",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "cargas"
+              ]
+            },
+            "description": "Administrador: todas las cargas; Operador: solo las propias. Lista vacía si no hay cargas. Sirve para seguir el estado (polling)."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('200', () => pm.response.to.have.status(200));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Detalle de la carga",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/cargas/{{idCarga}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "cargas",
+                "{{idCarga}}"
+              ]
+            },
+            "description": "Estado, historial de estados, resultados por periodo e incidencias. Carga inexistente o ajena (Operador) → 404 «La carga no existe.»."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('200', () => pm.response.to.have.status(200));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Contenido del Excel",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/cargas/{{idCarga}}/contenido",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "cargas",
+                "{{idCarga}}",
+                "contenido"
+              ]
+            },
+            "description": "Filas del Excel original tal como se subió (primera hoja, sin normalizar). Errores: 422 archivo ilegible, 500 archivo ausente, 503 almacenamiento no disponible."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('200', () => pm.response.to.have.status(200));"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "Salud del Gateway",
+      "request": {
+        "method": "GET",
+        "header": [],
+        "url": {
+          "raw": "{{baseUrl}}/health",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "health"
+          ]
+        },
+        "description": "Estado del propio Gateway (no requiere token).",
+        "auth": {
+          "type": "noauth"
+        }
+      }
+    }
+  ]
+}
