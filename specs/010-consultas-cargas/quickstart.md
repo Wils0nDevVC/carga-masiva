@@ -85,7 +85,32 @@ Base temporal nueva `CargaMasivaApp_F010`, con toda la pila apuntando a ella. Da
 | T003 (ingeniería inversa autorizada) | El *scaffold* de `CargaPeriodo` coincide con la entidad y la configuración actuales; solo difieren omisiones intencionadas (ver `tasks.md`). Código conservado sin cambios |
 | Escenario 2 | El Operador C pide `GET /cargas` (Gateway y directo): 200 `{"data":[],"isSuccess":true,"message":"OK","code":200,"errors":null}`. El Administrador ve la carga 1 de A, que no aparece en el historial de C. C pide `GET /cargas/1`: 404 «La carga no existe.» |
 | Fórmulas con valor en caché | Archivo temporal con los valores en caché escritos como los guarda Excel. `=2+3` → `"5"`, `=A2*2` → `"10"`, `="Hola "&"mundo"` → `"Hola mundo"`, `=A3*2` → `"20"`, `=A3>5` → `"true"`. **`=1+1` con 999 en caché → `"999"`**: se devuelve el valor almacenado, sin recalcular, como fija research D-06 |
-| **Hallazgo 1, contra el contrato** | `=1/0` con `#DIV/0!` en caché → `"DivisionByZero"` (nombre del enumerado de ClosedXML). Research D-06 fija el texto del error (`#DIV/0!`). **No se corrigió**; requiere decisión |
-| **Hallazgo 2, ambigüedad** | `=3*3` **sin** valor en caché (ClosedXML no guarda valores en caché al crear archivos; Excel sí) → `"9"`: ClosedXML la evalúa al leerla. El contrato ("valor almacenado") no define el caso sin valor almacenado. No se añadió ni se quitó ningún recálculo |
+| **Hallazgo 1, contra el contrato** (corregido; ver "Ajuste de fórmulas") | `=1/0` con `#DIV/0!` en caché → `"DivisionByZero"` (nombre del enumerado de ClosedXML). Research D-06 fija el texto del error (`#DIV/0!`). **No se corrigió**; requiere decisión |
+| **Hallazgo 2, ambigüedad** (resuelto por el usuario: `null`; ver "Ajuste de fórmulas") | `=3*3` **sin** valor en caché (ClosedXML no guarda valores en caché al crear archivos; Excel sí) → `"9"`: ClosedXML la evalúa al leerla. El contrato ("valor almacenado") no define el caso sin valor almacenado. No se añadió ni se quitó ningún recálculo |
 | Logs (Control y Gateway, 15 min) | 0 de 3 tokens emitidos, 0 valores de celda y 0 contraseñas |
 | Cierre | `cargas/f010/formulas.xlsx` borrado (204); `CargaMasivaApp_F010` eliminada; arranque normal sobre `CargaMasivaApp` con todo `healthy`; la base principal sigue con 0 cargas |
+
+## Ajuste de fórmulas (2026-11-03)
+
+**Decisión del usuario**:
+- Las fórmulas no se recalculan al consultar.
+- Con resultado guardado, se devuelve ese resultado; un error, como su texto de Excel (`#DIV/0!`).
+- Sin resultado guardado, se devuelve `null`.
+
+**Corrección**: `CachedValue` más `TextoError` en el lector de contenido de Control.
+
+**Verificación**: base temporal nueva `CargaMasivaApp_F010`, con toda la pila apuntando a ella. Cargas del Operador A insertadas por SQL:
+- carga 1 → `formulas.xlsx`;
+- carga 2 → Excel de ejemplo;
+- carga 3 → `casos.xlsx`.
+
+Archivo de fórmulas (XML de la hoja, con los resultados guardados como lo hace Excel): `A2 =2+3 [5]`, `B2 =A2*2 [10]`, `C2 ="Hola "&"mundo" [Hola mundo]`, `D2 =1+1 [999, manipulado]`, `E2 =3*3 [sin resultado]`, `B3 =A3*2 [20]`, `C3 =A3>5 [1]`, `D3 =1/0 [#DIV/0!]`.
+
+| Caso | Resultado (Gateway y directo, idénticos) |
+|---|---|
+| Fórmula con resultado guardado | `"5"`, `"10"`, `"Hola mundo"`, `"20"`, `"true"`. **`D2` → `"999"`**: el resultado guardado, sin recalcular (el recálculo daría `"2"`) |
+| Fórmula con error | **`D3` → `"#DIV/0!"`** (antes `"DivisionByZero"`) |
+| Fórmula sin resultado guardado | **`E2` → `null`** (antes `"9"`, por evaluación) |
+| Regresión: celdas de valor | Excel de ejemplo: 200 filas con 0 diferencias frente al lector independiente. `casos.xlsx`: idéntico a la verificación anterior (espacios, nulos, fila vacía, `"abc"`, `"31-1"`, `"true"`, fecha ISO y `"7.123456"`) |
+| Logs (Control y Gateway, 15 min) | 0 de 2 tokens y 0 valores de celda |
+| Cierre | 3 archivos de prueba borrados de `cargas/f010/` (204); `CargaMasivaApp_F010` eliminada; arranque normal sobre `CargaMasivaApp` con todo `healthy`; la base principal sigue con 0 cargas |

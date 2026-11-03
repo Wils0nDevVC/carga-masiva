@@ -8,7 +8,8 @@ namespace Acity.Infrastructure.Excel;
 /// <summary>
 /// Contenido del Excel para consulta (Feature 010, Q1 = B): primera hoja, fila 1 como encabezados y el resto de
 /// filas hasta la última usada (incluidas las vacías intermedias). Valores sin normalizar ni aplicar formato visual.
-/// No valida encabezados ni interpreta valores; no registra el contenido.
+/// Las fórmulas no se recalculan: se devuelve su resultado guardado o null si no lo tiene (decisión del usuario,
+/// 2026-11-03). No valida encabezados ni interpreta valores; no registra el contenido.
 /// </summary>
 public sealed class LectorContenidoExcelClosedXml : ILectorContenidoExcel
 {
@@ -51,7 +52,8 @@ public sealed class LectorContenidoExcelClosedXml : ILectorContenidoExcel
         var valores = new List<string?>(ultimaColumna);
         for (var columna = 1; columna <= ultimaColumna; columna++)
         {
-            valores.Add(Valor(fila.Cell(columna).Value));
+            // CachedValue no evalúa fórmulas: devuelve el resultado guardado en el archivo o Blank si no lo hay.
+            valores.Add(Valor(fila.Cell(columna).CachedValue));
         }
 
         return valores;
@@ -66,7 +68,20 @@ public sealed class LectorContenidoExcelClosedXml : ILectorContenidoExcel
         XLDataType.Boolean => valor.GetBoolean() ? "true" : "false",
         XLDataType.DateTime => valor.GetDateTime().ToString("yyyy-MM-ddTHH:mm:ss", CultureInfo.InvariantCulture),
         XLDataType.TimeSpan => valor.GetTimeSpan().ToString("c", CultureInfo.InvariantCulture),
-        XLDataType.Error => valor.GetError().ToString(),
+        XLDataType.Error => TextoError(valor.GetError()),
         _ => valor.ToString(CultureInfo.InvariantCulture)
+    };
+
+    // Texto de Excel del error (research D-06), sin exponer los nombres del enumerado de ClosedXML.
+    private static string TextoError(XLError error) => error switch
+    {
+        XLError.NullValue => "#NULL!",
+        XLError.DivisionByZero => "#DIV/0!",
+        XLError.IncompatibleValue => "#VALUE!",
+        XLError.CellReference => "#REF!",
+        XLError.NameNotRecognized => "#NAME?",
+        XLError.NumberInvalid => "#NUM!",
+        XLError.NoValueAvailable => "#N/A",
+        _ => "#ERROR"
     };
 }

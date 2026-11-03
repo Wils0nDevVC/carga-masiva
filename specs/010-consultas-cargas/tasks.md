@@ -127,9 +127,12 @@
   - **Coincide** con `CargaPeriodo.cs` y `CargaPeriodoConfiguration.cs` en `Id`, `CargaId`, `Periodo` (`HasMaxLength(7)`, `IsUnicode(false)`, `IsFixedLength()`), `Resultado` (`HasMaxLength(20)`, `IsUnicode(false)`), `FechaResultado` y FK a `CargaArchivo` con `ClientSetNull`.
   - **Omisiones intencionadas**: `PeriodoReservado` (no se consulta), las navegaciones, los índices únicos `UQ_CargaPeriodo_Carga_Periodo` y `UX_CargaPeriodo_PeriodoReservado` (solo afectan a escrituras) y `HasConstraintName` (solo afecta a migraciones). Control es de solo lectura sobre esta tabla.
   - Se conserva el código, sin cambios. Antes ya se había contrastado con `sys.columns` sin diferencias.
-- **Pendiente que requiere decisión** (no es una tarea de esta lista; se informa al usuario):
-  - **Representación de un error de fórmula**: devuelve `"DivisionByZero"` (nombre del enumerado de ClosedXML) en lugar del texto de Excel `#DIV/0!` que fija research D-06. Es un incumplimiento del plan detectado en la verificación; no se corrigió.
-  - **Fórmula sin valor en caché**: ClosedXML la evalúa (`=3*3` → `"9"`). El contrato ("valor almacenado") no define este caso: ambigüedad.
+- **Ajuste de fórmulas** (decisión del usuario, 2026-11-03; corrección mínima en `ms-control/src/Acity.Infrastructure/Excel/LectorContenidoExcelClosedXml.cs`):
+  - La lectura usa `IXLCell.CachedValue` en lugar de `Value`, así que no evalúa fórmulas: devuelve el resultado guardado o `null` si no lo hay.
+  - Los errores se traducen a su texto de Excel (`#DIV/0!`, `#N/A`, `#VALUE!`, `#REF!`, `#NAME?`, `#NUM!`, `#NULL!`) mediante `TextoError`, sin nombres del enumerado de ClosedXML.
+  - Sin dependencias nuevas; el procesamiento de Carga Masiva no cambia.
+  - Se actualizaron `spec.md` (Assumptions y Q3), `contracts/consultas-api.md`, `research.md` D-06 y `plan.md`.
+  - Verificado (ver `quickstart.md`, "Ajuste de fórmulas").
 - **Ajuste respecto a T002**: `ObtenerArchivoAsync` devuelve el `record ArchivoCarga(NombreArchivo, RutaArchivo)` en lugar de una tupla, por legibilidad.
 
 ## Dependencias y orden

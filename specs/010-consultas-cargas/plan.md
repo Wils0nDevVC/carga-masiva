@@ -101,5 +101,6 @@ Ninguno que requiera decisión.
 
 - **Ingeniería inversa**: la de `CargaPeriodo` en Control es manual o requiere autorización expresa.
 - **Abiertos 1 a 3 de `research.md`**: las fechas UTC, el valor en caché de las fórmulas y el enrutamiento de Ocelot. Se verifican en la implementación.
+- **Fórmulas** (decisión del usuario, 2026-11-03, research D-06): sin recálculo (`CachedValue`), `null` sin resultado guardado y errores con su texto de Excel.
 - **Precisión de la spec**: un `id` no numérico da 404 de ruta, no 400 (research D-02).
 - **Validación en el equipo de evaluación**: no realizada.

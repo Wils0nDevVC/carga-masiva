@@ -81,9 +81,12 @@ No se añade nada más: SeaweedFS se lee con el `HttpClient` existente y Polly y
 | Boolean | `true` o `false` |
 | DateTime | `yyyy-MM-ddTHH:mm:ss` (invariante) |
 | TimeSpan | `c` (invariante) |
-| Error | el texto del error (por ejemplo `#DIV/0!`) |
+| Error | el texto de Excel del error: `#NULL!`, `#DIV/0!`, `#VALUE!`, `#REF!`, `#NAME?`, `#NUM!` o `#N/A`, sin nombres internos de ClosedXML |
 
-  Las fórmulas se leen por su valor almacenado. *Sin verif*: que ClosedXML exponga el valor en caché sin recalcular.
+  **Fórmulas** [Decisión del usuario, 2026-11-03]:
+  - **No se recalculan** al consultar: se lee `IXLCell.CachedValue`, que no evalúa.
+  - Con resultado guardado en el archivo, se devuelve ese resultado según esta tabla (un error, como su texto de Excel).
+  - **Sin resultado guardado**, se devuelve `null`.
 - **Memoria**: el archivo cabe en memoria (≤ 10 MiB, F005). Se libera con `using`.
 - **Logs**: no se registra el contenido; solo el `idCarga` y el resultado.
 
@@ -99,6 +102,6 @@ La ruta `POST /cargas` existente no cambia. Las respuestas de Control (200, 400,
 ## Abiertos (se verifican en la implementación)
 
 1. La representación de fechas en UTC en la serialización (D-03).
-2. Que el valor en caché de las fórmulas se lea con ClosedXML (D-06).
+2. Que el valor en caché de las fórmulas se lea con ClosedXML (D-06): verificado. Decisión del 2026-11-03: sin recálculo, `null` sin resultado guardado y errores con su texto de Excel.
 3. El enrutamiento de Ocelot con plantillas que se solapan (D-07).
 4. Validación en el equipo de evaluación: no realizada.

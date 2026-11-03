@@ -37,6 +37,12 @@ Las secciones sin datos se devuelven como `[]`.
 ```
 Valores sin normalizar (research D-06). Filas desde la 2 hasta la última usada de la primera hoja.
 
+**Fórmulas** [Decisión del usuario, 2026-11-03]:
+- No se recalculan al consultar.
+- Con resultado guardado en el archivo, se devuelve ese resultado con la misma representación que una celda de valor.
+- Un resultado de error se devuelve como su texto de Excel (`#DIV/0!`, `#N/A`, `#VALUE!`, `#REF!`, `#NAME?`, `#NUM!`, `#NULL!`).
+- Sin resultado guardado, se devuelve `null`.
+
 ## Errores
 
 | Caso | Rutas | Estado | `message` |
