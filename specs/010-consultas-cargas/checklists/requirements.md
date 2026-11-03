@@ -50,6 +50,7 @@
 | Solo lectura | — | FR-009 | SC-006 | — |
 | Consultas a través del Gateway | — | FR-012 | SC-007 | — |
 | Logs sin tokens ni contenido | — | FR-014 | — | — |
+| Sin rutas internas ni detalles del almacenamiento en las respuestas | US3-1, US3-5, US3-6, US3-6a | FR-005d, FR-011a | SC-001b | Decisión del usuario |
 
 ## Notes
 

@@ -191,6 +191,7 @@ El usuario consulta las filas del Excel original de una carga autorizada, tal co
 - **FR-009**: Las consultas MUST ser de solo lectura: no cambian estados, no reprocesan, no publican mensajes, no escriben incidencias ni historial. [Decisión]
 - **FR-010**: Las consultas MUST NOT estar sujetas al Rate Limiting del endpoint de carga. El *polling* del README no debe consumir el límite de subidas. [Constitución §9: Rate Limiting en el endpoint de carga]
 - **FR-011**: Las respuestas MUST usar `Response<T>` con `Code` igual al estado HTTP. Las fechas se devuelven en UTC. [Constitución §5]
+- **FR-011a**: Ninguna respuesta (correcta o de error) MUST incluir la ruta del archivo en SeaweedFS (`RutaArchivo`), la dirección del almacenamiento ni otros detalles internos (excepciones, trazas). Los mensajes de error son los fijos de FR-005d. [Decisión del usuario, 2026-11-03]
 - **FR-012**: El Gateway MUST reenviar las rutas de consulta con JWT obligatorio y sin comprobar el rol, igual que `POST /cargas`. Las respuestas de Control se reenvían sin cambios. [F009 Q1–Q3]
 - **FR-013**: Se reutilizan las entidades y los mapeos existentes de Control. Solo se añaden los mapeos que exigen los datos de esta feature (ver Key Entities). [Constitución §6]
 - **FR-014**: Los logs MUST NOT registrar tokens ni el contenido devuelto. [Constitución §10]
@@ -233,6 +234,7 @@ El usuario consulta las filas del Excel original de una carga autorizada, tal co
 - **Rutas HTTP**: los nombres concretos (por ejemplo, `GET /cargas`, `GET /cargas/{id}` y la de contenido) se fijan en el plan, sin prefijos nuevos en el Gateway.
 - **Hoja leída**: solo la primera hoja, la misma que procesa la F006 (FR-007). El resto de hojas no forma parte del contenido.
 - **Valor de celda**: el valor almacenado en la celda (texto, número, fecha o booleano) en su representación textual invariante, sin aplicar el formato visual de Excel. El detalle de la representación se fija en el plan.
+- **Fórmulas** [Decisión del usuario, 2026-11-03]: no se recalculan al consultar. Si tienen un resultado guardado en el archivo, se devuelve ese resultado (un error, como su texto de Excel, por ejemplo `#DIV/0!`, sin nombres internos de la biblioteca); si no lo tienen, se devuelve `null`.
 - **Filas vacías intermedias**: se devuelven como filas con celdas vacías (no se omiten), porque no se normaliza.
 - **Pruebas**: con Postman o curl. No hay tests automatizados [Constitución §11].
 
@@ -241,6 +243,7 @@ El usuario consulta las filas del Excel original de una carga autorizada, tal co
 | # | Pregunta | Decisión | Requisitos |
 |---|---|---|---|
 | Q1 | ¿Qué es "contenido del archivo"? | **B**: filas del Excel original en SeaweedFS, sin normalizar, sin valores por defecto ni reprocesar; solo consulta; sin estilos. Se autoriza leer desde Control con ClosedXML y el acceso existente a SeaweedFS (amplía la 005 sin cambiar la recepción). Sin opción C | FR-005 a FR-005c, US3, Key Entities, SC-001a |
+| Q3 | Fórmulas en el contenido | Sin recálculo al consultar. Con resultado guardado, se devuelve ese resultado (un error, como su texto de Excel, `#DIV/0!`). Sin resultado guardado, `null` | FR-005a, Assumptions, research D-06 |
 | Q2 | Errores de la consulta de contenido y de carga inexistente | Ilegible (no es Excel o no tiene hojas) → **422** «El archivo no se puede leer como Excel». SeaweedFS caído o inaccesible → **503** «El archivo no está disponible temporalmente. Intente nuevamente más tarde». Archivo ausente en la ruta registrada → **500** «No se pudo recuperar el archivo asociado a la carga». Carga inexistente (o ajena, FR-008) → **404** «La carga no existe» | FR-005d, FR-008, US2-3, US2-5, US3-5, US3-6, SC-001b |
 
 ## Asuntos pendientes (no son requisitos aprobados)
