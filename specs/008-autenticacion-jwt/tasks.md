@@ -32,9 +32,9 @@ No se tocan Control ni los demás servicios, `referencias/` ni la constitución.
 
 ## Phase 2: Foundational (bloquea todas las historias)
 
-- [ ] T005 **Manual**: aplicar V005 en una base temporal `CargaMasivaApp_F008` con el runner (`DB_NAME=CargaMasivaApp_F008 docker compose up database-runner`). Comprobar que `SchemaMigraciones` tiene 5 registros. Hacer la ingeniería inversa de `dbo.RefreshToken` (`dotnet ef dbcontext scaffold … --table RefreshToken`) con la salida fuera del repositorio, y contrastarla con data-model.md.
-- [ ] T006 [P] Crear `ms-autenticacion/src/Acity.Domain/Entities/RefreshToken.cs`, a partir de T005, con `long Id`, `int UsuarioId`, `byte[] TokenHash`, `DateTime FechaCreacion`, `DateTime FechaExpiracion` y `DateTime? FechaUso`.
-- [ ] T007 Crear `ms-autenticacion/src/Acity.Infrastructure/Persistence/Configurations/RefreshTokenConfiguration.cs` con `ToTable("RefreshToken")`, la clave `Id`, `TokenHash` como `binary(32)` (`IsFixedLength`, `HasMaxLength(32)`) con índice único y la FK a `Usuario` sin navegación, igual que `UsuarioConfiguration`.
+- [x] T005 **Manual**: aplicar V005 en una base temporal `CargaMasivaApp_F008` con el runner (`DB_NAME=CargaMasivaApp_F008 docker compose up database-runner`). Comprobar que `SchemaMigraciones` tiene 5 registros. Hacer la ingeniería inversa de `dbo.RefreshToken` (`dotnet ef dbcontext scaffold … --table RefreshToken`) con la salida fuera del repositorio, y contrastarla con data-model.md.
+- [x] T006 [P] Crear `ms-autenticacion/src/Acity.Domain/Entities/RefreshToken.cs`, a partir de T005, con `long Id`, `int UsuarioId`, `byte[] TokenHash`, `DateTime FechaCreacion`, `DateTime FechaExpiracion` y `DateTime? FechaUso`.
+- [x] T007 Crear `ms-autenticacion/src/Acity.Infrastructure/Persistence/Configurations/RefreshTokenConfiguration.cs` con `ToTable("RefreshToken")`, la clave `Id`, `TokenHash` como `binary(32)` (`IsFixedLength`, `HasMaxLength(32)`) con índice único y la FK a `Usuario` sin navegación, igual que `UsuarioConfiguration`.
 - [x] T008 [P] Crear `ms-autenticacion/src/Acity.Infrastructure/Security/JwtOptions.cs`, copiada de `ms-control/src/Acity.Api/Options/JwtOptions.cs`:
   - Añade `int VigenciaAccesoMinutos = 60` y `int VigenciaRefreshMinutos = 60`.
   - `EsValida` exige además que ambos valores sean > 0.
@@ -84,7 +84,7 @@ No se tocan Control ni los demás servicios, `referencias/` ni la constitución.
   - `AddOptions<UsuariosInicialesOptions>().Bind(...).Validate(...).ValidateOnStart()`.
   - Tras `Build()` y antes de `Run()`: `await using var scope = app.Services.CreateAsyncScope()`, enviar `CrearUsuariosInicialesCommand` con Administrador y Operador desde las opciones, y cambiar a `await app.RunAsync()`.
   - Un error deja que el `catch` existente registre un `Fatal` y salga con código 1.
-- [ ] T020 [US3] Verificar los escenarios 1 a 3 del quickstart sobre `CargaMasivaApp_F008`:
+- [x] T020 [US3] Verificar los escenarios 1 a 3 del quickstart sobre `CargaMasivaApp_F008`:
   - 2 usuarios con hash en formato `PasswordHasher` (empieza por `AQAAAA`).
   - Tras 2 reinicios, los hashes no cambian.
   - Con `OPERADOR_CLAVE` cambiada, el hash sigue igual.
@@ -108,7 +108,7 @@ No se tocan Control ni los demás servicios, `referencias/` ni la constitución.
 - [x] T023 [US1] Crear `ms-autenticacion/src/Acity.Api/Controllers/AuthController.cs` (`[ApiController]`, `[Route("auth")]`, sin `[Authorize]`):
   - `[HttpPost("login")] Login([FromBody] IniciarSesionCommand)` devuelve `StatusCode(r.Code, r)`, igual que en `CargasController`.
   - Los nombres JSON son `email` y `password` (camelCase).
-- [ ] T024 [US1] Verificar los escenarios 4 a 7 del quickstart:
+- [x] T024 [US1] Verificar los escenarios 4 a 7 del quickstart:
   - Decodificar el JWT sin imprimirlo completo.
   - `POST /cargas` en Control debe devolver 202.
   - Los dos 401 deben dar cuerpos idénticos.
@@ -130,7 +130,7 @@ No se tocan Control ni los demás servicios, `referencias/` ni la constitución.
   - En cualquier rechazo: `Fail(401, "Refresh token inválido")` y log Warning con `Motivo`.
   - Si todo es correcto: emitir un par nuevo, insertar un `RefreshToken` nuevo, `SaveChangesAsync`, log Information con `UsuarioId` y `Ok(TokensDto)`.
 - [x] T027 [US2] Añadir a `ms-autenticacion/src/Acity.Api/Controllers/AuthController.cs` el endpoint `[HttpPost("refresh")] Refresh([FromBody] RenovarTokenCommand)` → `StatusCode(r.Code, r)`. El JSON es `refreshToken`.
-- [ ] T028 [US2] Verificar los escenarios 8 a 12 del quickstart:
+- [x] T028 [US2] Verificar los escenarios 8 a 12 del quickstart:
   - 8: renovación con 200 y el nuevo token aceptado por Control (202).
   - 9: la reutilización da 401.
   - 10: refresh alterado, token de acceso enviado como refresh y refresh enviado a Control dan 401 en los tres casos.
@@ -140,8 +140,8 @@ No se tocan Control ni los demás servicios, `referencias/` ni la constitución.
 
 ## Phase 6: Polish
 
-- [ ] T029 Escenario 13 del quickstart: buscar con `grep -F` las contraseñas iniciales, los tokens emitidos en la prueba y `JWT_CLAVE` en los logs de ms-autenticacion (volumen `logs-autenticacion` y `docker compose logs`). El resultado esperado es 0 coincidencias.
-- [ ] T030 Cierre:
+- [x] T029 Escenario 13 del quickstart: buscar con `grep -F` las contraseñas iniciales, los tokens emitidos en la prueba y `JWT_CLAVE` en los logs de ms-autenticacion (volumen `logs-autenticacion` y `docker compose logs`). El resultado esperado es 0 coincidencias.
+- [x] T030 Cierre:
   - Eliminar `CargaMasivaApp_F008`.
   - Arranque normal sobre `CargaMasivaApp`: el runner aplica V005 y `SchemaMigraciones` queda en 5. Requiere las variables `ADMIN_*` y `OPERADOR_*` en `.env`.
   - Comprobar que todos los servicios están `healthy`.
@@ -150,9 +150,8 @@ No se tocan Control ni los demás servicios, `referencias/` ni la constitución.
 
 ## Estado de la implementación (2026-11-03)
 
-- **Hecho y compilado** (`dotnet build`: 0 advertencias, 0 errores): T001–T004, T008–T019, T021–T023 y T025–T027. `docker compose config -q` es correcto con las variables `ADMIN_*` y `OPERADOR_*` definidas; sin ellas, Compose no arranca (comportamiento previsto).
-- **Escritos pero sin contrastar**: T006 y T007, redactados desde `data-model.md` y el contrato V005. Quedan pendientes de T005: aplicar V005 en `CargaMasivaApp_F008` y contrastar con la ingeniería inversa, que requiere autorización.
-- **Sin ejecutar**: T005, T020, T024 y T028–T030. Requieren los valores de `ADMIN_*` y `OPERADOR_*` en `.env` (los define el usuario) y la autorización de T005.
+- **30 de 30 tareas hechas.** Compilación: 0 advertencias, 0 errores. Verificación en ejecución: escenarios 1–11 y 13 sobre `CargaMasivaApp_F008`; el 12, por revisión de código. Detalle en `quickstart.md`.
+- **T005**: ingeniería inversa autorizada por el usuario (opción A, 2026-11-03), con `dotnet ef dbcontext scaffold` 10.0.14 sobre `CargaMasivaApp_F008` y la salida en el scratchpad, fuera del repositorio. Coincide con T006 y T007 en propiedades, `binary(32)` de longitud fija, índice único y FK `ClientSetNull` con su nombre. La única diferencia son las propiedades de navegación generadas (`Usuario`, `RefreshTokens`), que se omiten a propósito, igual que en el mapeo de la F004. No hubo ajustes.
 - **Desviaciones del plan**, sin cambio funcional:
   1. `IRefreshTokenRepository` pasa a llamarse `IAutenticacionRepository` (`Interfaces/Repositories/IAutenticacionRepository.cs`, `Repositories/AutenticacionRepository.cs`). Además de `MarcarUsadoAsync`, reúne las consultas de usuario con su rol, del rol por nombre y del refresh token por hash, porque Application no referencia EF y no puede ejecutar consultas asíncronas.
   2. Se añade `Microsoft.Extensions.Logging.Abstractions` 10.0.14 a Application, igual que en Control y en Carga Masiva.
