@@ -143,7 +143,7 @@ Control solo pasa a Fallido una carga que sigue Pendiente (V003); un mensaje tar
 - Archivo corrupto, sin hojas o sin alguno de los cuatro encabezados: archivo inválido → `ArchivoInvalido`, sin productos ni reintentos, Finalizado y notificación (US4-7). [Decisión Q1]
 - Encabezados en otro orden o con espacios: los cuatro campos se identifican por su nombre en la primera fila de la primera hoja (Assumptions). Columnas adicionales se ignoran.
 - Periodo guardado por Excel como fecha o como número: se toma su texto mostrado; si no cumple AAAA-MM, la fila se omite con motivo (no se convierte por suposición).
-- Precio con ruido binario (418.27 almacenado como 418.26999…): se convierte por su representación decimal más corta; solo un valor con más de dos decimales significativos se omite [F001 R-08].
+- Precio con ruido binario (418.27 almacenado como 418.26999…): se convierte por su representación decimal más corta; solo un valor con más de dos decimales significativos se omite [F001 R-08, propuesta, no decisión aprobada]. **Pendiente de decisión del usuario** (revisión de cierre H1; caso P0047 `75.51000000000001` → 75.51) frente a la constitución §7 "sin redondeo silencioso".
 - Código con espacios internos ("ab c"): se conserva; con solo espacios: ausente.
 - Duplicado cuya fila ganadora pertenece a un periodo que luego falla: `NoProcesado` "ganador no persistido", nunca Existente [F001 FR-049].
 - Mensaje para una carga En proceso o Cargado después de la recuperación: se descarta (la recuperación ya la tomó).
@@ -254,6 +254,8 @@ Ningún resultado de esta tabla se declara antes de ejecutarlo.
 ## Asuntos pendientes (no son requisitos aprobados)
 
 Ninguno que requiera decisión del usuario. Resueltos por decisión autorizada del usuario (2026-11-03): **Q1** archivo inválido (FR-008, FR-008a, FR-008b) y **Q2** notificación no confirmada (FR-022).
+
+**Hallazgos de la revisión de cierre, pendientes de decisión** (no son requisitos aprobados; detalle en `research.md` "Hallazgos"): H1 criterio de lectura de precios (representación más corta) frente a la precisión exacta; H2 "1,5" tratado como no numérico; H3 la transacción de un periodo sin circuit breaker frente a FR-016.
 
 **Limitación aceptada** (Q2): si la notificación no se confirma, la carga queda Finalizado con su incidencia y no se notifica después de forma automática; una notificación sin confirmación pudo haber llegado.
 

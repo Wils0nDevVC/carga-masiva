@@ -63,7 +63,7 @@ Desde la fase 1 se usa `CancellationToken.None` para las escrituras (una parada 
 - **Encabezados**: fila 1; se buscan `Periodo`, `CodigoProducto`, `NombreProducto`, `Precio` por texto con `Trim()` y `OrdinalIgnoreCase`; falta alguno → inválido ("Faltan encabezados: …"). Columnas adicionales se ignoran. [Spec Assumptions]
 - **Filas**: de la 2 a `LastRowUsed()`; el número de fila del Excel es el que se reporta. Fila completamente vacía (las cuatro celdas vacías o en blanco) → se omite sin incidencia. [README §3] [Spec FR-007, FR-009]
 - **Texto de celda**: `GetFormattedString()` para Periodo, Código y Nombre (el texto mostrado; una fecha no se reinterpreta como periodo).
-- **Precio**: celda numérica → `double` → `decimal.Parse(valor.ToString("R", CultureInfo.InvariantCulture), CultureInfo.InvariantCulture)` (representación decimal más corta, evita el ruido binario, F001 R-08); celda de texto → `decimal.TryParse` con `NumberStyles.Number` e `InvariantCulture`; error de fórmula o texto no numérico → inválido. [F001 R-08] [Plan]
+- **Precio**: celda numérica → `double` → `decimal.Parse(valor.ToString("R", CultureInfo.InvariantCulture), CultureInfo.InvariantCulture)` (representación decimal más corta, evita el ruido binario, F001 R-08); celda de texto → `decimal.TryParse` con `NumberStyles.Number` e `InvariantCulture`; error de fórmula o texto no numérico → inválido. [F001 R-08] [Plan] **Revisión de cierre**: el criterio de representación más corta está pendiente de decisión (H1) y lo implementado para texto no admite separador de miles, a diferencia de `NumberStyles.Number` (H2).
 - Comprobar con el Excel de ejemplo que 418.27 se lee como 418.27 [Sin verif].
 
 ## D-08 Recuperación (`RecuperarCargasCommandHandler`)
@@ -100,7 +100,7 @@ Orden por fila: vacía → omitir; **Periodo**: `Trim()`; vacío → FilaOmitida
 |---|---|---|---|---|---|---|
 | Descarga del filer | 3 | exponencial 1 s, jitter | `HttpRequestException` sin código, 408, 429, 5xx, tiempo de espera | 60 s | 0,5 / 5 / 30 s / 30 s | Ninguna (lectura) |
 | Procedimientos (`usp_*`), incremento de intentos, consultas | 3 | exponencial 1 s | `SqlException` transitoria (1205, -2, 53, 10053, 10054, 10060, 40613, 40197, 40501), `TimeoutException` | 30 s | 0,5 / 5 / 30 s / 30 s | Ninguna: procedimientos idempotentes; el incremento duplicado solo adelanta el límite (aceptable) |
-| Transacción de un periodo | 3 | exponencial 1 s | igual que la anterior | 120 s | — (comparte el circuito SQL) | Ninguna: comprueba Completado al empezar cada intento |
+| Transacción de un periodo | 3 | exponencial 1 s | igual que la anterior | 120 s | — (previsto: compartir el circuito SQL; **implementado sin circuit breaker**, H3) | Ninguna: comprueba Completado al empezar cada intento |
 | Publicación en `notificaciones` | 2 | exponencial 1 s | igual que en la 005 (`BrokerUnreachableException`, `AlreadyClosedException`, `OperationInterruptedException`, `PublishException` no `return`, tiempo de espera) | 5 s | 0,5 / 5 / 30 s / 30 s | Tolerada (Notificaciones descartará por estado, en su feature) |
 | Conexión del consumidor | — (bucle del `BackgroundService`, 10 s) | — | — | — | — | — |
 
@@ -113,6 +113,8 @@ Nunca se reintentan: archivo inválido, ausencia confirmada (404), colisión (ti
 - Sin confirmación tras los reintentos → incidencia `ErrorTecnico`, motivo "No se obtuvo confirmación del intermediario para el mensaje de notificación; no se garantiza que se haya publicado ni que se notifique después." La carga sigue Finalizado; el mensaje de `carga_masiva` se confirma. [Dec Q2] [Spec FR-022]
 
 ## D-14 Fallo técnico terminal
+
+> **Precisión de implementación (D3)**: este tratamiento cubre las fases 2 a 8 (intento, descarga, lectura, reserva y persistencia de periodos). Los pasos a Cargado y Finalizado y la notificación quedan fuera: si un cambio de estado falla, la excepción sube sin confirmar el mensaje y la recuperación lo completa (constitución §8: Cargado no pasa a Fallido).
 
 1. Revertir lo no confirmado (lo hace la transacción).
 2. Insertar `ErrorTecnico` (motivo con el tipo de error y la operación, sin secretos; `CargaPeriodoId` del periodo si se conoce).
@@ -139,13 +141,26 @@ Ingeniería inversa de `dbo.Usuario` (procedimiento de F004, manual) e integraci
 1. **Resuelto**: `SixLabors.Fonts` resuelto a 1.0.0, licencia Apache-2.0.
 2. **Resuelto**: `sp_getapplock` de sesión con espera 0 deja fuera a una segunda instancia; con la sesión del cerrojo terminada (`KILL`), `ComprobarVigenteAsync` lanza `CerrojoPerdidoException` antes del siguiente periodo y el consumidor se detiene sin confirmar.
 3. **Resuelto**: el filer responde 404 a un archivo inexistente.
-4. **Resuelto**: precios sin ruido (P0117 = 418.27; P0047 almacenado en el Excel como `75.51000000000001` → 75.51).
+4. **Implementado, pendiente de decisión del usuario** (ver H1): el criterio de "representación decimal más corta" convierte P0047 (texto `75.51000000000001` en el archivo) en 75.51. Es una propuesta de F001 R-08 recogida en D-07, no una decisión aprobada; contrasta con la regla de la constitución §7 "sin redondeo silencioso".
 5. **Resuelto**: EF Core usa puntos de guardado en el modo producto a producto; el error 2601 nombra `UX_Producto_CodigoProducto` (caso "ss"/"ß").
 6. **Pendiente**: validación en el equipo de evaluación no realizada (motor amd64 emulado).
 
-**Desviaciones de implementación** (mínimas, sin cambiar el diseño ni las reglas):
-- `IRepositorioProcesamiento` (Application) con implementación EF en Infrastructure: Application no referencia EF Core y necesita consultas asíncronas, el incremento de una sentencia (`UPDATE … OUTPUT`), la transacción por periodo y la detección de la colisión. En consecuencia se retiró `IUnitOfWork.ExecuteInTransactionAsync` (T011), que quedaba sin uso.
-- Precio en texto sin separador de miles (`NumberStyles` sin `AllowThousands`): "1,5" es no numérico, no 15.
-- `Cargado` → `Finalizado` y la notificación quedan fuera del tratamiento de fallo terminal: si falla un cambio de estado, la excepción sube sin confirmar y la recuperación lo completa (constitución §8: Cargado no pasa a Fallido).
-- `ConsumidorRabbitMq` espera al mensaje en curso antes de volver cuando se cierra el canal o se detiene el host (evita que la recuperación se solape con una ejecución viva).
-- El pipeline de la transacción de un periodo no tiene circuit breaker: D-12 preveía compartir el circuito SQL, pero un pipeline de Polly no comparte estado con otro; se dejó con sus 3 reintentos limitados y sin circuito propio.
+**Desviaciones de implementación** (clasificadas en la revisión de cierre; ninguna se considera aprobada por haberse implementado):
+
+| # | Desviación | Tipo | Estado |
+|---|---|---|---|
+| D1 | `IRepositorioProcesamiento` (Application) con implementación EF en Infrastructure; se retiró `IUnitOfWork.ExecuteInTransactionAsync` (T011) | Técnica (organización de capas; mismo comportamiento) | Documentada en plan y tasks |
+| D2 | Precio en texto sin separador de miles: "1,5" → "Precio no numérico" (D-07 decía `NumberStyles.Number`, que lo leería como 15) | **Cambio de comportamiento** | **Pendiente de confirmación** (H2) |
+| D3 | Cargado → Finalizado y la notificación fuera del tratamiento de fallo terminal | Aplicación de una regla aprobada (constitución §8; F001 FR-041; spec FR-015/FR-019) que D-14 no recogía | Documentada en D-14 |
+| D4 | `ConsumidorRabbitMq` espera al mensaje en curso antes de volver (cierre de canal o parada) | Corrección para cumplir una regla aprobada (un solo procesador; spec FR-002/FR-003) | Documentada en el contrato de consumo |
+| D5 | La transacción de un periodo no tiene circuit breaker (D-12 preveía compartir el de SQL) | **Incumple spec FR-016** ("MUST … Circuit Breaker") para esa operación | **Pendiente de decisión** (H3) |
+
+## Hallazgos de la revisión de cierre (2026-11-03)
+
+**H1 — Precio 75.51000000000001 frente a "precisión exacta, sin redondeo silencioso".**
+Evidencia (Excel de ejemplo, fila 53, P0047): el XML de la hoja guarda `<c r="D53" t="n"><v>75.51000000000001</v></c>`; ClosedXML lo lee como `Number` y `GetFormattedString()` muestra `75.51`; `GetDouble()` devuelve el double con bits `4052E0A3D70A3D71`, **idéntico** al de `75.51` (`double.Parse("75.51000000000001") == 75.51`); su valor binario exacto es 75.510000000000005115… (`G17` = 75.510000000000005); `ToString("R")` = `75.51`. Es la única celda del archivo con más de dos decimales en su texto. Con el texto literal (`decimal.Parse("75.51000000000001")`) la fila se omitiría por no representable en DECIMAL(18,2); con el criterio implementado se guarda 75.51.
+Contraste: la constitución §7 (Dec) y F001 FR-047 (Dec) exigen omitir un precio que no pueda representarse exactamente en DECIMAL(18,2) y prohíben redondear en silencio. El paso de binario a decimal por la representación más corta es **una interpretación** propuesta en F001 R-08 ("Riesgo funcional… se resuelve en la feature de Carga Masiva", sin marca Dec), copiada en esta spec (Edge Cases) y en D-07; **no consta como decisión del usuario**. A nivel de datos el archivo no distingue 75.51 de 75.51000000000001 (mismo double), y una lectura binaria estricta omitiría casi todos los precios (p. ej. 418.27 tampoco es exacto en binario), pero eso no convierte la interpretación en aprobada. **Contradicción posible: se reporta y no se da el caso por aprobado**; opciones para el usuario: (A) aprobar el criterio de representación más corta (comportamiento actual); (B) usar el texto literal de la celda y omitir la fila 53 (requiere leer el valor sin interpretar); (C) otra.
+
+**H2 — "1,5" como no numérico.** Cambio frente a D-07 (`NumberStyles.Number`), elegido para no leer "1,5" como 15; la constitución solo dice "Precio no numérico … omite la fila". Queda como comportamiento implementado **pendiente de confirmación**.
+
+**H3 — Circuit breaker de la transacción de un periodo.** FR-016 exige reintentos limitados **y** Circuit Breaker para las operaciones contra SQL Server; la transacción de un periodo tiene solo reintentos (3). **Pendiente de decisión**: añadir un circuit breaker a ese pipeline (cambio de código menor) o aceptar la excepción.

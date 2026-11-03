@@ -89,7 +89,7 @@ ms-carga-masiva/src/Acity.Application/
 │   ├── ValidadorFilas.cs                                        # D-09 (reglas puras)
 │   ├── DecisorGanadores.cs                                      # D-10 (reglas puras)
 │   └── ProcesadorCarga.cs                                       # fases D-05, D-11, D-14
-├── Interfaces/Repositories/IUnitOfWork.cs                       # + ExecuteInTransactionAsync
+├── Interfaces/Repositories/IRepositorioProcesamiento.cs         # implementado en lugar de ampliar IUnitOfWork (research D1)
 └── Interfaces/Services/
     ├── IAlmacenamientoArchivos.cs + ArchivoNoEncontradoException.cs   # descarga; 404 = ausencia confirmada
     ├── ILectorExcel.cs             # devuelve filas o "archivo inválido"
@@ -104,7 +104,7 @@ ms-carga-masiva/src/Acity.Infrastructure/
 ├── DependencyInjection.cs
 ├── Persistence/Configurations/{UsuarioConfiguration,CargaArchivoConfiguration}.cs
 ├── Persistence/ProcedimientosCarga.cs
-├── Repositories/UnitOfWork.cs                                   # + ExecuteInTransactionAsync
+├── Persistence/RepositorioProcesamiento.cs                       # transacción por periodo y colisión (research D1); UnitOfWork sin cambios
 ├── Storage/SeaweedFsAlmacenamiento.cs + SeaweedFsOptions.cs
 ├── Excel/LectorExcelClosedXml.cs
 ├── Messaging/{RabbitMqOptions,RabbitMqConexion,ConsumidorRabbitMq,PublicadorNotificaciones}.cs
@@ -128,4 +128,9 @@ Los otros servicios, V001–V003, `api-gateway/`, `referencias/` y la constituci
 
 ## Pendientes tras el plan
 
-Ninguno que requiera decisión del usuario. Tras la implementación (research "Abiertos" y quickstart "Resultados"): resueltos los abiertos 1 a 5; desviaciones mínimas documentadas en `research.md`. **Sigue pendiente** la validación en el equipo de evaluación (motor amd64 emulado en este equipo). Parcial: el transitorio "reintento seguido de éxito" de la descarga no pudo provocarse de forma fiable (escenario 19). Dependencia de la feature de Notificaciones: declarar la misma topología de `notificaciones` y descartar mensajes de cargas que no estén Finalizado.
+**Requieren decisión del usuario** (revisión de cierre, `research.md` "Hallazgos"):
+- **H1**: criterio de lectura de precios numéricos (representación decimal más corta) frente a la regla de precisión exacta sin redondeo silencioso; caso P0047 `75.51000000000001` → 75.51. No se da por aprobado.
+- **H2**: precio en texto con coma ("1,5") tratado como no numérico; cambio frente a D-07.
+- **H3**: la transacción de un periodo no tiene circuit breaker, contra spec FR-016.
+
+**Sin decisión pendiente, pero no verificado**: validación en el equipo de evaluación (motor amd64 emulado en este equipo); "reintento seguido de éxito" de la descarga (escenario 19, parcial); errores SQL transitorios no provocados; duplicado de notificación por reintento tras confirmación perdida no provocado. Dependencia de la feature de Notificaciones: declarar la misma topología de `notificaciones` y descartar mensajes de cargas que no estén Finalizado.
