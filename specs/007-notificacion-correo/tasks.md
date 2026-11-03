@@ -22,7 +22,7 @@
 
 ## Phase 2: Foundational
 
-- [ ] T006 **Manual**: ingeniería inversa de `dbo.CargaArchivo` (procedimiento de F004, desde `ms-control/`, salida fuera del repositorio) — **Sustituida (2026-11-03): no se ejecutó un scaffold nuevo; `Id` y `Estado` se tomaron del mapeo de `CargaArchivo` de ms-control (salido de ingeniería inversa y comprobado contra el catálogo en F004 con 0 diferencias). Puede ejecutarse después sin cambiar el código**
+- [ ] T006 **Manual**: ingeniería inversa de `dbo.CargaArchivo` (procedimiento de F004, desde `ms-control/`, salida fuera del repositorio) — **Sustituida por reutilización y verificación (2026-11-03, autorizada por el usuario): no se ejecutó scaffolding; `Id` y `Estado` se reutilizaron del mapeo de `CargaArchivo` de ms-control y se verificaron contra el catálogo actual de `CargaMasivaApp` (modelo de diseño de ms-notificaciones frente a `sys.columns`: `Id` bigint NOT NULL PK, `Estado` varchar(20) NOT NULL; 0 diferencias). No hace falta generarlo después**
 - [x] T007 [P] Crear `<dom>/Entities/CargaArchivo.cs` con solo `Id` (`long`, BIGINT PK) y `Estado` (`string`, VARCHAR(20) NOT NULL) y `<inf>/Persistence/Configurations/CargaArchivoConfiguration.cs` (`ToTable("CargaArchivo")`, `HasKey`, `Estado` `HasMaxLength(20).IsUnicode(false)`); sin relaciones nuevas (research D-06)
 - [x] T008 [P] Crear en `<app>/Interfaces/Services/`: `IEnvioCorreo` (`Task EnviarAsync(string destinatario, string asunto, string cuerpo, CancellationToken)`), `EnvioCorreoFallidoException` (fallo definitivo: reintentos agotados o error permanente, con motivo sin credenciales), `DependenciaNoDisponibleException` (operación, `RetryAfter`), `ICargasConsulta` (`Task<string?> ObtenerEstadoAsync(long idCarga, CancellationToken)`, `Task RegistrarErrorNotificacionAsync(long idCarga, string motivo, CancellationToken)`), `IProcedimientosCarga` (`Task<bool> CambiarEstadoAsync(long cargaId, string nuevoEstado, string? estadoEsperado, CancellationToken)`)
 - [x] T009 Crear `<inf>/Resilience/PipelinesResiliencia.cs` con los pipelines `smtp` y `sql` de research D-05 (reintento → circuit breaker propio 0,5/5/30 s/30 s → tiempo de espera; `smtp`: 3 reintentos, 30 s, reintentables `SocketException`, `IOException`, `ServiceNotConnectedException`, `SmtpProtocolException`, `SmtpCommandException` 4xx, `TimeoutRejectedException`; `sql`: 3 reintentos, 30 s, números transitorios de la 006, `TimeoutException`, `TimeoutRejectedException`, **excluyendo `BrokenCircuitException`**) y el método `EjecutarAsync` que traduce `BrokenCircuitException` a `DependenciaNoDisponibleException`
@@ -37,35 +37,35 @@
 
 - [x] T014 [US1] Crear `<app>/Notificaciones/Commands/NotificarCarga/NotificarCargaCommand.cs` (`IdCarga`, `Usuario`, `FechaFin`) y `NotificarCargaCommandHandler.cs` (research D-03): leer estado; si no es `Finalizado` → descartar con log; armar asunto `Carga {IdCarga} finalizada` y cuerpo `La carga {IdCarga} finalizó.` + `Fecha de fin (UTC): {FechaFin:yyyy-MM-dd HH:mm:ss}` (sin "sin errores", sin resúmenes); enviar; `CambiarEstadoAsync(IdCarga, "Notificado", "Finalizado")` (`false` → log de advertencia)
 - [x] T015 [US1] Crear `<api>/Consumers/ConsumidorNotificaciones.cs` (`BackgroundService`): deserializar `{ idCarga, usuario, fechaFin }` (web), validar y enviar el comando en un ámbito nuevo; ante excepción, esperar `RetryAfter` (o 30 s; mínimo 10 s) si es `DependenciaNoDisponibleException`, 10 s en otro caso; registrar con `AddHostedService` en `<api>/Program.cs`
-- [ ] T016 [US1] Ejecutar los escenarios 1 y 2 de `quickstart.md` con el servidor SMTP de pruebas; registrar resultados — **Pendiente: verificación manual que hará el usuario después (2026-11-03)**
+- [ ] T016 [US1] Ejecutar los escenarios 1 y 2 de `quickstart.md` con el servidor SMTP de pruebas; registrar resultados — **Pendiente: requiere un servidor SMTP válido; se hará cuando el usuario disponga de él (2026-11-03)**
 
 ## Phase 4: US2 - Reentregas y mensajes que no corresponden (P1)
 
 **Meta**: sin correos para cargas no Finalizado ni mensajes inválidos. **Prueba**: escenarios 3 a 5.
 
 - [x] T017 [US2] Completar la validación del mensaje en `<api>/Consumers/ConsumidorNotificaciones.cs` (JSON inválido, `idCarga` ≤ 0, `usuario` vacío, `fechaFin` inválida → log de error y confirmar sin comando) y los logs de descarte por estado en el handler
-- [ ] T018 [US2] Ejecutar los escenarios 3 a 5; registrar resultados — **Pendiente: verificación manual que hará el usuario después (2026-11-03)**
+- [ ] T018 [US2] Ejecutar los escenarios 3 a 5; registrar resultados — **Pendiente: requiere un servidor SMTP válido; se hará cuando el usuario disponga de él (2026-11-03)**
 
 ## Phase 5: US3 - Fallo de envío (P1)
 
 **Meta**: agotado o permanente → `ErrorNotificacion`, Finalizado, confirmado; incidencia no guardada → sin confirmar; circuito abierto → sin confirmar. **Prueba**: escenarios 6 a 8.
 
 - [x] T019 [US3] En `NotificarCargaCommandHandler.cs`: capturar `EnvioCorreoFallidoException` → `RegistrarErrorNotificacionAsync` y terminar sin excepción (confirmar); si el registro falla, dejar subir (sin confirmar); `DependenciaNoDisponibleException` sube sin incidencia
-- [ ] T020 [US3] Ejecutar los escenarios 6 a 8 (SMTP detenido; transitorio; destinatario rechazado si el servidor lo permite) y comprobar la clasificación real de excepciones de MailKit (abierto 1); registrar resultados — **Pendiente: verificación manual que hará el usuario después (2026-11-03)**
+- [ ] T020 [US3] Ejecutar los escenarios 6 a 8 (SMTP detenido; transitorio; destinatario rechazado si el servidor lo permite) y comprobar la clasificación real de excepciones de MailKit (abierto 1); registrar resultados — **Pendiente: requiere un servidor SMTP válido; se hará cuando el usuario disponga de él (2026-11-03)**
 
 ## Phase 6: US4 - Notificado no guardado tras enviar (P2)
 
 **Meta**: sin `ErrorNotificacion` ni Fallido; sin confirmar; la reentrega consulta el estado. **Prueba**: escenario 9.
 
 - [x] T021 [US4] En `NotificarCargaCommandHandler.cs`: si `CambiarEstadoAsync` falla tras sus reintentos (o por circuito abierto), log de error "correo enviado; Notificado no registrado" con `IdCarga` y dejar subir la excepción (sin confirmar); sin incidencia
-- [ ] T022 [US4] Ejecutar el escenario 9 (bloqueo de la fila de la carga desde otra sesión en la base temporal hasta agotar los reintentos del procedimiento) y registrar el posible segundo correo como limitación observada — **Pendiente: verificación manual que hará el usuario después (2026-11-03)**
+- [ ] T022 [US4] Ejecutar el escenario 9 (bloqueo de la fila de la carga desde otra sesión en la base temporal hasta agotar los reintentos del procedimiento) y registrar el posible segundo correo como limitación observada — **Pendiente: requiere un servidor SMTP válido; se hará cuando el usuario disponga de él (2026-11-03)**
 
 ## Phase 7: Polish
 
-- [ ] T023 Escenario 10: `grep -F` de `SMTP_CLAVE`, `RABBITMQ_PASSWORD`, `MSSQL_SA_PASSWORD` y `Password=` en los logs de ms-notificaciones = 0 — **Pendiente: verificación manual que hará el usuario después (2026-11-03)**
+- [ ] T023 Escenario 10: `grep -F` de `SMTP_CLAVE`, `RABBITMQ_PASSWORD`, `MSSQL_SA_PASSWORD` y `Password=` en los logs de ms-notificaciones = 0 — **Pendiente: requiere un servidor SMTP válido; se hará cuando el usuario disponga de él (2026-11-03)**
 - [x] T024 Revisar `git diff`: solo `ms-notificaciones/`, `compose.yaml`, `.env.example` y `specs/007-…`; sin endpoints de negocio, Worker ni pruebas
-- [ ] T025 Cierre: eliminar `CargaMasivaApp_F007` y el servidor SMTP de pruebas, purgar la cola, arranque normal `healthy`; completar "Resultados" de `quickstart.md` (ejecutado / parcial / no ejecutado) y "Abiertos" de `research.md` — **Pendiente: verificación manual que hará el usuario después (2026-11-03)**
-- [x] T026 Revisión final y comando de commit sin `Co-Authored-By` — **Hecha sin la verificación manual; ver "Resultados"**
+- [ ] T025 Cierre: eliminar `CargaMasivaApp_F007` y el servidor SMTP de pruebas, purgar la cola, arranque normal `healthy`; completar "Resultados" de `quickstart.md` (ejecutado / parcial / no ejecutado) y "Abiertos" de `research.md` — **Pendiente: requiere un servidor SMTP válido; se hará cuando el usuario disponga de él (2026-11-03)**
+- [x] T026 Revisión final y comando de commit sin `Co-Authored-By` — **Hecha sin la verificación del envío; la 007 no está completamente verificada (ver "Resultados")**
 
 ## Dependencias y orden
 

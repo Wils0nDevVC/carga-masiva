@@ -36,8 +36,16 @@ Eliminar la base temporal y el servidor SMTP de pruebas; purgar la cola; arranqu
 
 ## Resultados (implementación, 2026-11-03)
 
-- **Implementado**: paquetes (MailKit 4.18.2, RabbitMQ.Client 7.2.2, Polly.Core 8.9.0, Logging.Abstractions 10.0.14, `FrameworkReference`), `CargaArchivo` (`Id`, `Estado`), pipelines `smtp` y `sql` (reintento → circuito propio → tiempo de espera; sin reintentar circuito abierto), procedimiento con `@EstadoEsperado = 'Finalizado'`, consulta de estado, `ErrorNotificacion` sin reintentos, envío con MailKit (texto plano, un destinatario), consumidor con confirmación manual y espera tras fallo, Compose y `.env.example`. `dotnet build ms-notificaciones/src/Acity.Notificaciones.slnx`: 0 advertencias, 0 errores.
-- **Comprobado**: `docker compose config -q` correcto; ms-notificaciones arranca `healthy` y registra "Consumiendo la cola notificaciones".
-- **Entorno**: se añadieron a `.env` (no versionado) `SMTP_HOST=smtp-pruebas`, `SMTP_PUERTO=1025`, `SMTP_SEGURIDAD=None`, `SMTP_REMITENTE=notificaciones@carga-masiva.local` para un servidor SMTP de pruebas local; sustituirlos por el servidor real cuando corresponda.
-- **T006 sustituida**: el mapeo se tomó de ms-control (F004, 0 diferencias con el catálogo) en lugar de un scaffold nuevo.
-- **No ejecutado (pendiente del usuario)**: escenarios 1 a 10 (envío real a un SMTP de pruebas, reentregas, fallos de envío, Notificado no guardado, logs). Ningún resultado de esos escenarios se declara.
+**Estado: implementada, NO completamente verificada.** El envío real por SMTP sigue pendiente hasta disponer de un servidor SMTP válido.
+
+| Tipo de comprobación | Estado | Detalle |
+|---|---|---|
+| Compilación | **Hecha** | `dotnet build ms-notificaciones/src/Acity.Notificaciones.slnx`: 0 advertencias, 0 errores |
+| Configuración y arranque | **Hecha** (con los valores SMTP de prueba ya retirados) | `docker compose config -q` correcto; ms-notificaciones arrancó `healthy` y registró "Consumiendo la cola notificaciones". Sin `SMTP_HOST` ni `SMTP_REMITENTE` en `.env`, Compose no arranca (comportamiento previsto) |
+| Mapeo de `CargaArchivo` (T006) | **Hecha** | Reutilizado de ms-control y verificado contra el catálogo actual de `CargaMasivaApp`: `Id` bigint NOT NULL PK, `Estado` varchar(20) NOT NULL; 0 diferencias |
+| Pruebas con sustitutos (servidor SMTP de pruebas, mensajes publicados a mano) | **No ejecutadas** | Escenarios 1 a 10 sin ejecutar |
+| Envío SMTP real | **No ejecutado** | Pendiente hasta disponer de un SMTP válido |
+
+- **Implementado**: paquetes (MailKit 4.18.2, RabbitMQ.Client 7.2.2, Polly.Core 8.9.0, Logging.Abstractions 10.0.14, `FrameworkReference`), `CargaArchivo` (`Id`, `Estado`), pipelines `smtp` y `sql` (reintento → circuito propio → tiempo de espera; sin reintentar circuito abierto), procedimiento con `@EstadoEsperado = 'Finalizado'`, consulta de estado, `ErrorNotificacion` sin reintentos, envío con MailKit (texto plano, un destinatario), consumidor con confirmación manual y espera tras fallo, Compose y `.env.example` (variables documentadas con ejemplos identificados como tales).
+- **Entorno**: los valores SMTP de prueba que se habían añadido a `.env` sin autorización se retiraron; no se añadió ningún servidor SMTP.
+- Ningún resultado de los escenarios 1 a 10 se declara.
