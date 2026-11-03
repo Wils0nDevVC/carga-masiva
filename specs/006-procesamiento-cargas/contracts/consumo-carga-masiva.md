@@ -25,6 +25,7 @@ Procedencia: README §2, §3 paso 3; constitución §8, §9; F001 R-02, R-05; F0
 | Procesada hasta Finalizado (con o sin notificación confirmada) | — | ack |
 | Fallo terminal registrado (Fallido) | — | ack |
 | Excepción no controlada, cerrojo perdido o fallo al registrar el fallo | log de error | **sin ack**: se cierra el canal; RabbitMQ reentrega; tras 10 s el consumidor vuelve a obtener el cerrojo y recupera antes de consumir |
+| Rechazo por circuito abierto en descarga, SQL o transacción de un periodo (`DependenciaNoDisponibleException`) | sin Fallido, sin `ErrorTecnico`; se devuelve el intento contado en esa ejecución | **sin ack**; espera `RetryAfter` del circuito (o 30 s; mínimo 10 s) antes de obtener el cerrojo, recuperar y consumir |
 | Fallo de un cambio de estado a Cargado o Finalizado | la carga conserva su estado (no pasa a Fallido) | **sin ack**; la recuperación completa la finalización |
 | Cierre del canal o parada del host con un mensaje en curso | se espera a que termine ese mensaje antes de soltar el cerrojo o recuperar (nunca dos ejecuciones a la vez) | según el resultado del mensaje; si el canal ya está cerrado, la confirmación falla y RabbitMQ lo reentrega (se descartará por estado) |
 
