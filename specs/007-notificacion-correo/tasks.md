@@ -6,7 +6,8 @@
 
 **Reglas de ejecución**
 - **Ingeniería inversa manual** (T006): la ejecuta el usuario (o Claude con autorización expresa); salida fuera del repositorio.
-- Datos de prueba solo en `CargaMasivaApp_F007`; sin correos reales (servidor SMTP de pruebas fuera de Compose); secretos solo por entorno.
+- Datos de prueba solo en `CargaMasivaApp_F007`; los correos van a Mailpit (SMTP local en Compose, decisión del usuario 2026-11-03), que los captura sin entregarlos a buzones externos; secretos solo por entorno.
+- Niveles de verificación, que se registran por separado: **(a) pruebas con sustitutos** (mensajes publicados a mano, cargas preparadas por SQL, fallos simulados); **(b) SMTP local real** (MailKit envía por SMTP y Mailpit captura el correo); **(c) entrega externa** (buzón real): fuera de esta feature, no se ejecuta.
 - Marcar `[x]` solo lo ejecutado y verificado; una tarea `[x]` no es evidencia de escenarios no probados.
 - Al cerrar, entregar el comando de commit (sin `Co-Authored-By`).
 
@@ -37,39 +38,48 @@
 
 - [x] T014 [US1] Crear `<app>/Notificaciones/Commands/NotificarCarga/NotificarCargaCommand.cs` (`IdCarga`, `Usuario`, `FechaFin`) y `NotificarCargaCommandHandler.cs` (research D-03): leer estado; si no es `Finalizado` → descartar con log; armar asunto `Carga {IdCarga} finalizada` y cuerpo `La carga {IdCarga} finalizó.` + `Fecha de fin (UTC): {FechaFin:yyyy-MM-dd HH:mm:ss}` (sin "sin errores", sin resúmenes); enviar; `CambiarEstadoAsync(IdCarga, "Notificado", "Finalizado")` (`false` → log de advertencia)
 - [x] T015 [US1] Crear `<api>/Consumers/ConsumidorNotificaciones.cs` (`BackgroundService`): deserializar `{ idCarga, usuario, fechaFin }` (web), validar y enviar el comando en un ámbito nuevo; ante excepción, esperar `RetryAfter` (o 30 s; mínimo 10 s) si es `DependenciaNoDisponibleException`, 10 s en otro caso; registrar con `AddHostedService` en `<api>/Program.cs`
-- [ ] T016 [US1] Ejecutar los escenarios 1 y 2 de `quickstart.md` con el servidor SMTP de pruebas; registrar resultados — **Pendiente: requiere un servidor SMTP válido; se hará cuando el usuario disponga de él (2026-11-03)**
+- [ ] T016 [US1] Ejecutar los escenarios 1 y 2 de `quickstart.md` con el servidor SMTP de pruebas; registrar resultados — **Pendiente: se ejecutará con Mailpit tras T027–T029 (decisión del usuario, 2026-11-03)**
 
 ## Phase 4: US2 - Reentregas y mensajes que no corresponden (P1)
 
 **Meta**: sin correos para cargas no Finalizado ni mensajes inválidos. **Prueba**: escenarios 3 a 5.
 
 - [x] T017 [US2] Completar la validación del mensaje en `<api>/Consumers/ConsumidorNotificaciones.cs` (JSON inválido, `idCarga` ≤ 0, `usuario` vacío, `fechaFin` inválida → log de error y confirmar sin comando) y los logs de descarte por estado en el handler
-- [ ] T018 [US2] Ejecutar los escenarios 3 a 5; registrar resultados — **Pendiente: requiere un servidor SMTP válido; se hará cuando el usuario disponga de él (2026-11-03)**
+- [ ] T018 [US2] Ejecutar los escenarios 3 a 5; registrar resultados — **Pendiente: se ejecutará con Mailpit tras T027–T029 (decisión del usuario, 2026-11-03)**
 
 ## Phase 5: US3 - Fallo de envío (P1)
 
 **Meta**: agotado o permanente → `ErrorNotificacion`, Finalizado, confirmado; incidencia no guardada → sin confirmar; circuito abierto → sin confirmar. **Prueba**: escenarios 6 a 8.
 
 - [x] T019 [US3] En `NotificarCargaCommandHandler.cs`: capturar `EnvioCorreoFallidoException` → `RegistrarErrorNotificacionAsync` y terminar sin excepción (confirmar); si el registro falla, dejar subir (sin confirmar); `DependenciaNoDisponibleException` sube sin incidencia
-- [ ] T020 [US3] Ejecutar los escenarios 6 a 8 (SMTP detenido; transitorio; destinatario rechazado si el servidor lo permite) y comprobar la clasificación real de excepciones de MailKit (abierto 1); registrar resultados — **Pendiente: requiere un servidor SMTP válido; se hará cuando el usuario disponga de él (2026-11-03)**
+- [ ] T020 [US3] Ejecutar los escenarios 6 a 8 (SMTP detenido; transitorio; destinatario rechazado si el servidor lo permite) y comprobar la clasificación real de excepciones de MailKit (abierto 1); registrar resultados — **Pendiente: se ejecutará con Mailpit tras T027–T029 (decisión del usuario, 2026-11-03)**
 
 ## Phase 6: US4 - Notificado no guardado tras enviar (P2)
 
 **Meta**: sin `ErrorNotificacion` ni Fallido; sin confirmar; la reentrega consulta el estado. **Prueba**: escenario 9.
 
 - [x] T021 [US4] En `NotificarCargaCommandHandler.cs`: si `CambiarEstadoAsync` falla tras sus reintentos (o por circuito abierto), log de error "correo enviado; Notificado no registrado" con `IdCarga` y dejar subir la excepción (sin confirmar); sin incidencia
-- [ ] T022 [US4] Ejecutar el escenario 9 (bloqueo de la fila de la carga desde otra sesión en la base temporal hasta agotar los reintentos del procedimiento) y registrar el posible segundo correo como limitación observada — **Pendiente: requiere un servidor SMTP válido; se hará cuando el usuario disponga de él (2026-11-03)**
+- [ ] T022 [US4] Ejecutar el escenario 9 (bloqueo de la fila de la carga desde otra sesión en la base temporal hasta agotar los reintentos del procedimiento) y registrar el posible segundo correo como limitación observada — **Pendiente: se ejecutará con Mailpit tras T027–T029 (decisión del usuario, 2026-11-03)**
 
 ## Phase 7: Polish
 
-- [ ] T023 Escenario 10: `grep -F` de `SMTP_CLAVE`, `RABBITMQ_PASSWORD`, `MSSQL_SA_PASSWORD` y `Password=` en los logs de ms-notificaciones = 0 — **Pendiente: requiere un servidor SMTP válido; se hará cuando el usuario disponga de él (2026-11-03)**
+- [ ] T023 Escenario 10: `grep -F` de `SMTP_CLAVE`, `RABBITMQ_PASSWORD`, `MSSQL_SA_PASSWORD` y `Password=` en los logs de ms-notificaciones = 0 — **Pendiente: se ejecutará con Mailpit tras T027–T029 (decisión del usuario, 2026-11-03)**
 - [x] T024 Revisar `git diff`: solo `ms-notificaciones/`, `compose.yaml`, `.env.example` y `specs/007-…`; sin endpoints de negocio, Worker ni pruebas
-- [ ] T025 Cierre: eliminar `CargaMasivaApp_F007` y el servidor SMTP de pruebas, purgar la cola, arranque normal `healthy`; completar "Resultados" de `quickstart.md` (ejecutado / parcial / no ejecutado) y "Abiertos" de `research.md` — **Pendiente: requiere un servidor SMTP válido; se hará cuando el usuario disponga de él (2026-11-03)**
+- [ ] T025 Cierre: eliminar `CargaMasivaApp_F007` (Mailpit se conserva en Compose; sus correos de prueba pueden borrarse desde su interfaz o API), purgar la cola, arranque normal `healthy`; completar "Resultados" de `quickstart.md` (ejecutado / parcial / no ejecutado) y "Abiertos" de `research.md` — **Pendiente: se ejecutará con Mailpit tras T027–T029 (decisión del usuario, 2026-11-03)**
 - [x] T026 Revisión final y comando de commit sin `Co-Authored-By` — **Hecha sin la verificación del envío; la 007 no está completamente verificada (ver "Resultados")**
+
+## Phase 8: Mailpit como SMTP local de pruebas (decisión del usuario, 2026-11-03)
+
+**Meta**: completar la verificación de la 007 hasta capturar el correo en Mailpit y guardar Notificado con su historial (research D-08; constitución §11 v3.4.0; no es requisito del README).
+
+- [ ] T027 Añadir a `compose.yaml` el servicio `mailpit` (`image: axllent/mailpit:v1.31.6`, `ports: ["8025:8025"]` para la interfaz web, SMTP 1025 solo en la red interna, sin volumen, `restart: "no"`) y en `ms-notificaciones` `depends_on: mailpit: condition: service_started`; nada más cambia; `docker compose config -q`
+- [ ] T028 [P] En `.env.example`, documentar como **ejemplo local** (comentado y señalado como tal) `SMTP_HOST=mailpit`, `SMTP_PUERTO=1025`, `SMTP_SEGURIDAD=None`, `SMTP_REMITENTE=notificaciones@carga-masiva.test`, sin usuario ni clave, aclarando que sin TLS ni autenticación solo es para pruebas locales y que un servidor real se configura con las mismas variables
+- [ ] T029 [P] En `.env` (no versionado), añadir solo `SMTP_HOST=mailpit`, `SMTP_PUERTO=1025`, `SMTP_SEGURIDAD=None`, `SMTP_USUARIO=`, `SMTP_CLAVE=`, `SMTP_REMITENTE=notificaciones@carga-masiva.test`, conservando el resto del archivo; sin imprimir secretos
+- [ ] T030 Verificar el flujo con SMTP local real (nivel b): arrancar Compose; con una carga Finalizado en la base temporal (o una subida real con Control), comprobar que Mailpit captura **un** correo de `notificaciones@carga-masiva.test` a `usuario`, asunto `Carga {idCarga} finalizada` y el cuerpo del contrato (API `/api/v1/messages` o interfaz en `http://localhost:8025`), y que la carga queda Notificado con una entrada de historial Notificado; registrar en `quickstart.md` como nivel (b), sin declarar entrega externa
 
 ## Dependencias y orden
 
-Setup (T001–T005) → Foundational (T006–T013) → US1 (T014–T016) → US2 (T017–T018) → US3 (T019–T020) → US4 (T021–T022) → Polish (T023–T026). T007 depende de T006; T010–T012 de T009; T013 de T007–T012; T015 de T014.
+Setup (T001–T005) → Foundational (T006–T013) → US1 (T014–T016) → US2 (T017–T018) → US3 (T019–T020) → US4 (T021–T022) → Polish (T023–T026) → Mailpit (T027–T030). Las verificaciones pendientes T016, T018, T020, T022, T023 y T025 se ejecutan después de T027–T029. T007 depende de T006; T010–T012 de T009; T013 de T007–T012; T015 de T014.
 
 ## Paralelismo
 

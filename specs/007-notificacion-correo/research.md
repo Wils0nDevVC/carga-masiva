@@ -1,6 +1,6 @@
 # Research: Notificación por correo en ms-notificaciones
 
-**Procedencia**: `Dec` = decisión del usuario o constitución v3.3.0; `Spec` = spec 007; `F001/F004/F005/F006` = features anteriores; `Plan` = decisión técnica de este plan (alternativa más sencilla; sin aprobación individual); `Verif` = comprobado en esta etapa; `Sin verif` = se comprueba en la implementación.
+**Procedencia**: `Dec` = decisión del usuario o constitución v3.4.0; `Spec` = spec 007; `F001/F004/F005/F006` = features anteriores; `Plan` = decisión técnica de este plan (alternativa más sencilla; sin aprobación individual); `Verif` = comprobado en esta etapa; `Sin verif` = se comprueba en la implementación.
 
 ## D-01 Paquetes
 
@@ -68,14 +68,26 @@ Ingeniería inversa de `dbo.CargaArchivo` (procedimiento de F004, manual) e inte
 | `Smtp.Remitente` | `Smtp__Remitente` | — | dirección válida |
 | `RabbitMq.*` | `RabbitMq__*` | puerto 5672 | no vacías |
 
-Compose (`ms-notificaciones`): `depends_on` `rabbitmq: service_healthy`; variables desde `.env` (`SMTP_HOST`, `SMTP_PUERTO`, `SMTP_SEGURIDAD`, `SMTP_USUARIO`, `SMTP_CLAVE`, `SMTP_REMITENTE`; vacías en `.env.example`). **No** se añade un servidor SMTP a Compose; para verificar se usa uno de pruebas fuera del repositorio (D-08). [Dec: sin servicios nuevos] [Spec FR-012]
+Compose (`ms-notificaciones`): `depends_on` `rabbitmq: service_healthy` y `mailpit: service_started`; variables desde `.env` (`SMTP_HOST`, `SMTP_PUERTO`, `SMTP_SEGURIDAD`, `SMTP_USUARIO`, `SMTP_CLAVE`, `SMTP_REMITENTE`). Cambiar de servidor SMTP = cambiar esas variables, sin tocar código. [Spec FR-012]
 
-## D-08 Verificación sin enviar correos reales
+## D-08 Mailpit como SMTP local de pruebas y demostración [Decisión del usuario, 2026-11-03; constitución §11 v3.4.0; no es requisito del README]
 
-Un servidor SMTP de pruebas en un contenedor aparte (`docker run`, conectado a la red de Compose; no forma parte de `compose.yaml`), que acepta sin autenticación y expone una API o interfaz para leer los correos recibidos; la imagen concreta se fija y comprueba en la implementación [Sin verif]. Para fallos: detenerlo (transitorio/agotamiento) o configurar un destinatario que rechace (si el servidor lo permite) [Sin verif].
+| Aspecto | Valor | Procedencia |
+|---|---|---|
+| Imagen | `axllent/mailpit:v1.31.6` (oficial; publicada 2026-10-15; manifiestos linux/amd64 y linux/arm64 comprobados con `docker manifest inspect`, sin descargarla). Se elige frente a v1.33.0 (publicada 2026-10-31, 3 días) por tener más de dos semanas | Verif / Plan |
+| Servicio en Compose | `mailpit`, sin volumen (los correos capturados son de prueba y pueden perderse al recrear el contenedor), `restart: "no"`, en la red por defecto de Compose | Plan |
+| Conexión desde ms-notificaciones | por nombre de servicio: `SMTP_HOST=mailpit`, `SMTP_PUERTO=1025` (SMTP de Mailpit, sin publicar en el host) | Dec + Plan |
+| Seguridad | `SMTP_SEGURIDAD=None`, sin `SMTP_USUARIO` ni `SMTP_CLAVE`: **solo** para estas pruebas locales; un servidor real se configura con `StartTls`/`SslOnConnect` y credenciales por entorno | Dec |
+| Remitente local | `SMTP_REMITENTE=notificaciones@carga-masiva.test` (dominio reservado `.test`) | Dec |
+| Interfaz web | `8025:8025` en el host (puerto libre en este equipo; no choca con 8081–8084, 8888, 14333 ni 15672) | Verif / Plan |
+| Lectura de correos capturados | API HTTP de Mailpit (`/api/v1/messages`, `/api/v1/message/{id}`) o la interfaz web | Sin verif (comprobar en la implementación) |
+| Fallos SMTP simulados | detener el contenedor `mailpit` (transitorio o agotamiento); la función **Chaos** de Mailpit (errores SMTP configurables) para el error permanente, si se confirma su activación en esta versión | Sin verif |
+| Entrega externa | Mailpit **no** entrega a buzones externos (no se configura relay); la entrega real queda fuera de esta feature | Dec |
+
+`.env` (no versionado) recibe los valores locales de la tabla; `.env.example` los documenta como ejemplo local, sin secretos. No se añaden bibliotecas, endpoints ni más infraestructura.
 
 ## Abiertos
 
 1. Clasificación exacta de excepciones de MailKit 4.18 (D-05).
-2. Servidor SMTP de pruebas y su forma de rechazar destinatarios (D-08).
+2. API de Mailpit para leer correos y activación de Chaos en v1.31.6 (D-08).
 3. Validación en el equipo de evaluación: no realizada.

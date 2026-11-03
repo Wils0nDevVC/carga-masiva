@@ -1,6 +1,10 @@
 <!--
 Sync Impact Report
-- Versión: 3.2.1 → 3.3.0 (MINOR: decisiones del usuario de la Feature 007, notificación por correo,
+- Versión: 3.3.0 → 3.4.0 (MINOR: se añade a §11 Mailpit como servidor SMTP local de pruebas y
+  demostración en Compose, por decisión del usuario en la Feature 007, 2026-11-03; no es requisito del
+  README. Captura correos sin entregarlos a buzones externos; MailKit y la configuración SMTP por
+  variables de entorno se mantienen.) Resto sin cambios; la fecha de ratificación sigue pendiente.
+- Historial 3.3.0 (referencia): Versión 3.2.1 → 3.3.0 (MINOR: decisiones del usuario de la Feature 007, notificación por correo,
   2026-11-03.) Principios modificados: §8 (contenido del correo; reintentos limitados del envío y su
   agotamiento; correo enviado sin Notificado persistido, con posible duplicado documentado),
   Pendientes (se retira "contenido exacto del correo"). Distinción: el README exige enviar el correo
@@ -341,6 +345,11 @@ Sync Impact Report
 - Un Docker Compose en la raíz levanta la solución y sus dependencias. RabbitMQ y SeaweedFS pueden
   declararse directo en Compose; solo se crean directorios si requieren archivos de
   configuración. [README §4] [Decisión]
+- Mailpit se declara en Compose como servidor SMTP local de pruebas y demostración: captura los
+  correos y los muestra en su interfaz web, sin entregarlos a buzones externos. MailKit sigue siendo
+  la biblioteca de envío y el servidor SMTP se elige por variables de entorno (Mailpit es solo el
+  valor local; otro servidor se configura sin cambiar código). [Decisión del usuario, Feature 007;
+  no es requisito del README]
 - Orden de arranque en Compose: SQL Server disponible → runner de `database/` completado
   correctamente → microservicios. Si el runner falla, Compose no arranca los microservicios
   dependientes. No se añade otro microservicio ni un ejecutable .NET para migraciones. [Decisión]
@@ -375,4 +384,4 @@ eliminaciones incompatibles; MINOR por principios o secciones nuevas; PATCH por 
 Toda especificación, plan y tarea MUST verificar cumplimiento de esta constitución, indicar la
 procedencia de cada obligación y justificar cualquier complejidad añadida.
 
-**Version**: 3.3.0 | **Ratified**: TODO(RATIFICATION_DATE): pendiente de aprobación del usuario | **Last Amended**: 2026-11-03
+**Version**: 3.4.0 | **Ratified**: TODO(RATIFICATION_DATE): pendiente de aprobación del usuario | **Last Amended**: 2026-11-03

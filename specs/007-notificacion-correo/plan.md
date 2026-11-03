@@ -4,7 +4,7 @@
 
 **Input**: `specs/007-notificacion-correo/spec.md`
 
-**Procedencia**: `Dec` = decisión del usuario o constitución v3.3.0; `Spec`; `F004/F006`; `Plan` = decisión técnica (detalle en `research.md`); `Verif` = comprobado en esta etapa.
+**Procedencia**: `Dec` = decisión del usuario o constitución v3.4.0; `Spec`; `F004/F006`; `Plan` = decisión técnica (detalle en `research.md`); `Verif` = comprobado en esta etapa.
 
 ## Summary
 
@@ -13,11 +13,11 @@ ms-notificaciones consume `notificaciones` con un `BackgroundService` de a un me
 ## Technical Context
 
 **Language/Version**: C# / .NET 10. **Primary Dependencies**: existentes (MediatR 12.5.0, FluentValidation 12.2.0, EF Core SqlServer 10.0.14, Serilog); nuevas: MailKit 4.18.2 (MIT), RabbitMQ.Client 7.2.2, Polly.Core 8.9.0 (Infrastructure), Logging.Abstractions 10.0.14 (Application). [Verif NuGet]
-**Storage**: `CargaMasivaApp` sin cambios de esquema. **Testing**: manual (`quickstart.md`), SMTP de pruebas fuera de Compose. **Target Platform**: Docker Compose; SQL Server amd64 emulado en este equipo. **Project Type**: microservicio; toca `ms-notificaciones/`, `compose.yaml`, `.env.example`. **Constraints**: sin cerrojo (no exigido), sin Outbox, plantillas ni servicios nuevos; sin entrega exactamente una vez.
+**Storage**: `CargaMasivaApp` sin cambios de esquema. **Testing**: manual (`quickstart.md`) con Mailpit en Compose como SMTP local que captura los correos (research D-08). **Target Platform**: Docker Compose; SQL Server amd64 emulado en este equipo. **Project Type**: microservicio; toca `ms-notificaciones/`, `compose.yaml` (servicio `mailpit` y variables de ms-notificaciones), `.env.example` y los valores SMTP locales de `.env`. **Constraints**: sin cerrojo (no exigido), sin Outbox, plantillas ni servicios nuevos; sin entrega exactamente una vez.
 
 ## Constitution Check
 
-Constitución v3.3.0.
+Constitución v3.4.0.
 
 | Principio | Verificación | Resultado |
 |---|---|---|
@@ -27,7 +27,7 @@ Constitución v3.3.0.
 | §8 Estados y correo | Notificado solo tras envío; contenido y reintentos según las cláusulas de la 007; Finalizado ante fallos; sin Fallido | Pasa |
 | §9 Integraciones | MailKit por entorno; Polly con reintentos limitados y circuito; circuito abierto no terminal (F006 FR-016a) | Pasa |
 | §10 Logging | Sin credenciales SMTP, contraseñas ni cadenas de conexión | Pasa |
-| §11/§12 | Variables en Compose, sin servicio SMTP nuevo; sin tests; dependencias verificadas | Pasa |
+| §11/§12 | Variables en Compose; Mailpit como SMTP local de pruebas (§11 v3.4.0, decisión del usuario); sin tests; sin bibliotecas nuevas | Pasa |
 
 Tras Phase 1: sin violaciones.
 
@@ -40,7 +40,8 @@ specs/007-notificacion-correo/
 ├── checklists/requirements.md
 └── tasks.md            # /speckit-tasks (no creado aquí)
 
-compose.yaml, .env.example                                   # ms-notificaciones: RabbitMq__*, Smtp__*, depends_on rabbitmq
+compose.yaml                                                 # + servicio mailpit (axllent/mailpit:v1.31.6, 8025:8025); ms-notificaciones: RabbitMq__*, Smtp__*, depends_on rabbitmq y mailpit
+.env.example, .env                                           # SMTP local de ejemplo / valores locales (sin secretos)
 
 ms-notificaciones/src/
 ├── Acity.Api/{Program.cs, appsettings.json, Consumers/ConsumidorNotificaciones.cs}
@@ -70,4 +71,4 @@ Los demás servicios, el esquema y la constitución no cambian.
 
 ## Pendientes tras el plan
 
-Ninguno que requiera decisión. Se comprueban en la implementación: clasificación de excepciones de MailKit y servidor SMTP de pruebas (research "Abiertos"); validación en el equipo de evaluación sin realizar.
+Ninguno que requiera decisión. Mailpit aprobado por el usuario (2026-11-03) como SMTP local de pruebas y demostración (research D-08; constitución §11 v3.4.0). Se comprueban en la implementación: clasificación de excepciones de MailKit, API de Mailpit y su función Chaos (research "Abiertos"). Niveles de verificación: (1) pruebas con sustitutos (mensajes publicados a mano, cargas preparadas por SQL, fallos simulados), (2) SMTP local real hasta Mailpit, (3) entrega a buzones externos — esta última fuera de la feature. Validación en el equipo de evaluación sin realizar.

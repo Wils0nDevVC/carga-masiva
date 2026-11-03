@@ -4,11 +4,11 @@
 
 **Created**: 2026-11-03
 
-**Status**: Draft (v2: Q1, Q2 y Q3 resueltas por decisión del usuario, 2026-11-03)
+**Status**: Draft (v3: Q1–Q3 resueltas; Mailpit aprobado como SMTP local de pruebas, 2026-11-03)
 
 **Input**: Consumir la cola `notificaciones` con un `BackgroundService` en `Acity.Api` de ms-notificaciones, enviar el correo con MailKit y configuración externa, cambiar Finalizado → Notificado solo tras un envío exitoso (con historial), conservar Finalizado ante un fallo de envío con su incidencia y los reintentos aprobados, y tratar reentregas y cargas ya notificadas sin repetir deliberadamente el envío. Esta etapa genera solo la especificación.
 
-**Procedencia**: `[README §n]` = `referencias/README.md`; `[Constitución §n]` = `.specify/memory/constitution.md` v3.3.0; `[F001 …]` = `specs/001-persistencia-integridad-carga/`; `[F004]` = entidades por servicio; `[F006 …]` = `specs/006-procesamiento-cargas/` (contrato `mensaje-notificaciones.md`); `[Decisión]` = decisión explícita del usuario (incluye el prompt de esta feature); `[Observado]` = comprobado leyendo el repositorio. **Pendiente** = no decidido; no es requisito.
+**Procedencia**: `[README §n]` = `referencias/README.md`; `[Constitución §n]` = `.specify/memory/constitution.md` v3.4.0; `[F001 …]` = `specs/001-persistencia-integridad-carga/`; `[F004]` = entidades por servicio; `[F006 …]` = `specs/006-procesamiento-cargas/` (contrato `mensaje-notificaciones.md`); `[Decisión]` = decisión explícita del usuario (incluye el prompt de esta feature); `[Observado]` = comprobado leyendo el repositorio. **Pendiente** = no decidido; no es requisito.
 
 ## Contexto
 
@@ -49,7 +49,7 @@ Cuando llega el mensaje de una carga Finalizado, el sistema envía un correo al 
 
 **Why this priority**: Cierra el flujo del README (Finalizado → Notificado).
 
-**Independent Test**: Publicar en `notificaciones` el mensaje de una carga Finalizado (o procesar una carga real con ms-carga-masiva) con un servidor SMTP de pruebas y revisar el correo recibido, el estado y el historial.
+**Independent Test**: Publicar en `notificaciones` el mensaje de una carga Finalizado (o procesar una carga real con ms-carga-masiva) con Mailpit como SMTP local y revisar el correo capturado, el estado y el historial.
 
 **Acceptance Scenarios**:
 
@@ -82,7 +82,7 @@ Si el envío del correo falla tras los reintentos aprobados, la carga conserva F
 
 **Why this priority**: Es la regla aprobada para el fallo propio de esta feature.
 
-**Independent Test**: Detener el servidor SMTP de pruebas (o configurar credenciales inválidas) y consumir el mensaje de una carga Finalizado.
+**Independent Test**: Detener Mailpit (o provocar errores SMTP con su función Chaos, si se confirma) y consumir el mensaje de una carga Finalizado.
 
 **Acceptance Scenarios**:
 
@@ -145,7 +145,7 @@ Si el correo se envió pero no puede registrarse Notificado (p. ej. la base no r
 **Límites de alcance**
 
 - **FR-011**: Esta feature MUST NOT incluir Autenticación, Gateway, consultas de seguimiento, endpoints de negocio, colas adicionales, frameworks de mensajería, Outbox, servicios de barrido, plantillas de correo ni pruebas automatizadas; MUST NOT reabrir la recuperación de mensajes no publicados de la 006. [Decisión] [Constitución §9, §11, §12]
-- **FR-012**: RabbitMQ y la configuración SMTP MUST llegar a ms-notificaciones por variables de entorno en Compose, reutilizando los servicios existentes; ningún otro servicio cambia. [Constitución §11]
+- **FR-012**: RabbitMQ y la configuración SMTP MUST llegar a ms-notificaciones por variables de entorno en Compose. Para pruebas locales y demostración, Compose MUST incluir Mailpit como servidor SMTP que captura los correos sin entregarlos a buzones externos; MailKit sigue siendo la biblioteca de envío y el servidor se cambia solo por variables de entorno. Ningún otro servicio cambia. [Constitución §11 v3.4.0] [Decisión del usuario, no del README]
 
 ### Key Entities *(include if feature involves data)*
 
@@ -168,7 +168,7 @@ Sin tablas ni columnas nuevas.
 
 ## Assumptions
 
-- La verificación usa un servidor SMTP de pruebas fuera del repositorio y configurado por entorno; no se envían correos reales en esta etapa ni se añade un servicio SMTP a Compose sin decisión. [Decisión: no añadir servicios]
+- La verificación usa Mailpit en Compose (decisión del usuario, 2026-11-03): el envío por SMTP es real hasta Mailpit, que captura el correo; no hay entrega a buzones externos. La entrega externa no se verifica en esta feature. [Constitución §11 v3.4.0]
 - Los parámetros de Polly (reintentos, tiempos, circuito) los fija el plan dentro de lo aprobado. [Constitución §9]
 - Una sola instancia de ms-notificaciones en Compose. [Observado]
 - Validado solo en el equipo de desarrollo; el equipo de evaluación queda sin validar.
