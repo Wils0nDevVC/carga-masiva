@@ -1,6 +1,12 @@
 <!--
 Sync Impact Report
-- Versión: 3.2.0 → 3.2.1 (PATCH: aclaración de §7 sobre la lectura del precio, decisiones H1 y H2 del
+- Versión: 3.2.1 → 3.3.0 (MINOR: decisiones del usuario de la Feature 007, notificación por correo,
+  2026-11-03.) Principios modificados: §8 (contenido del correo; reintentos limitados del envío y su
+  agotamiento; correo enviado sin Notificado persistido, con posible duplicado documentado),
+  Pendientes (se retira "contenido exacto del correo"). Distinción: el README exige enviar el correo
+  al usuario indicando que la carga finalizó y marcar Notificado; lo demás son precisiones
+  operativas del usuario. Resto sin cambios; la fecha de ratificación sigue pendiente.
+- Historial 3.2.1 (referencia): Versión 3.2.0 → 3.2.1 (PATCH: aclaración de §7 sobre la lectura del precio, decisiones H1 y H2 del
   usuario en el cierre de la Feature 006, 2026-11-03: celdas numéricas por su valor con la
   representación decimal más corta y comprobación exacta en DECIMAL(18,2); celdas de texto con punto
   decimal y sin separadores de miles. Sustituye la interpretación propuesta en F001 R-08.) Resto sin
@@ -269,6 +275,19 @@ Sync Impact Report
   Feature 006]
 - Notificaciones envía el correo con MailKit y marca Notificado tras el envío exitoso.
   [README §2 y §3] [Decisión]
+- Contenido del correo [Decisión, Feature 007, 2026-11-03]: asunto "Carga {idCarga} finalizada" y
+  cuerpo en texto plano con idCarga y fechaFin, dirigido al usuario del mensaje; sin resúmenes,
+  consultas adicionales, adjuntos ni plantillas; "finalizada" no se presenta como "sin errores".
+- Reintentos del correo [Decisión, Feature 007]: los reintentos limitados del envío satisfacen "la
+  notificación se reintenta"; agotados, se registra ErrorNotificacion, la carga conserva Finalizado y
+  el mensaje se confirma, sin recuperación automática posterior. Si la incidencia no puede
+  persistirse, el mensaje no se confirma y se aplica el manejo de fallos existente, sin reentrega
+  inmediata en bucle.
+- Correo enviado sin Notificado persistido [Decisión, Feature 007]: si tras enviar no puede
+  persistirse Notificado después de los reintentos, el mensaje no se confirma; en la reentrega se
+  consulta primero el estado (Notificado → confirmar sin reenviar; Finalizado → puede reenviarse).
+  El posible correo duplicado se documenta; no se promete entrega exactamente una vez ni se añaden
+  mecanismos para garantizarla.
 - El número de tablas no está fijado: el plan justifica el modelo mínimo. [README §5] [Decisión]
 
 ### 9. Gateway, mensajería e integraciones
@@ -342,8 +361,7 @@ Sync Impact Report
 
 ## Pendientes y no autorizado
 Permanecen pendientes (no decididos): rotación y retención de logs; parámetros de
-Polly (se fijan en las features de Control, Carga Masiva y Notificaciones); contenido exacto del
-correo; React; verificación
+Polly (se fijan en las features de Control, Carga Masiva y Notificaciones); React; verificación
 operativa de Docker y SQL Server en el equipo de ejecución; la adaptación y validación del
 runner de `database/` y la limpieza de ms-control (migraciones EF Core, modelo completo y
 arranque con migraciones) quedan pendientes de una nueva feature. Refresh tokens es opcional en el
@@ -357,4 +375,4 @@ eliminaciones incompatibles; MINOR por principios o secciones nuevas; PATCH por 
 Toda especificación, plan y tarea MUST verificar cumplimiento de esta constitución, indicar la
 procedencia de cada obligación y justificar cualquier complejidad añadida.
 
-**Version**: 3.2.1 | **Ratified**: TODO(RATIFICATION_DATE): pendiente de aprobación del usuario | **Last Amended**: 2026-11-03
+**Version**: 3.3.0 | **Ratified**: TODO(RATIFICATION_DATE): pendiente de aprobación del usuario | **Last Amended**: 2026-11-03
