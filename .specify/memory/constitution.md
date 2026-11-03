@@ -1,6 +1,15 @@
 <!--
 Sync Impact Report
-- Versión: 3.3.0 → 3.4.0 (MINOR: se añade a §11 Mailpit como servidor SMTP local de pruebas y
+- Versión: 3.4.0 → 3.5.0 (MINOR: decisiones del usuario de la Feature 008, autenticación,
+  2026-11-03, con autorización expresa de enmienda.) Principios modificados: §9 (Autenticación:
+  refresh tokens incluidos con `POST /auth/refresh`; token de acceso con vigencia de 60 minutos
+  predeterminada y configurable, HS256 con JWT_CLAVE/JWT_EMISOR/JWT_AUDIENCIA; credenciales
+  inválidas → 401 genérico con Response<T> sin revelar si el usuario existe; refresh token con
+  vigencia de 1 hora configurable, persistido solo como hash en la base mediante script versionado
+  y rotado en cada renovación), Pendientes (se retira "Refresh tokens ... no está decidido"). Distinción: el README exige `/auth/login` con JWT
+  Bearer y deja `/auth/refresh` como opcional valorado; lo demás son decisiones del usuario.
+  Plantillas: sin cambios. Resto sin cambios; la fecha de ratificación sigue pendiente.
+- Historial 3.4.0 (referencia): Versión 3.3.0 → 3.4.0 (MINOR: se añade a §11 Mailpit como servidor SMTP local de pruebas y
   demostración en Compose, por decisión del usuario en la Feature 007, 2026-11-03; no es requisito del
   README. Captura correos sin entregarlos a buzones externos; MailKit y la configuración SMTP por
   variables de entorno se mantienen.) Resto sin cambios; la fecha de ratificación sigue pendiente.
@@ -302,6 +311,14 @@ Sync Impact Report
   modos que omitan la seguridad. Contrato mínimo de claims que Autenticación MUST emitir: `sub`
   (identificador numérico de Usuario) y `role` (Administrador u Operador); el correo no se exige
   como claim y se obtiene del usuario persistido. [Decisión]
+- Autenticación expone `POST /auth/login` [README §2] y, por decisión del usuario (Feature 008;
+  opcional en el README), refresh tokens con `POST /auth/refresh`. El token de acceso se firma con
+  HS256 usando `JWT_CLAVE`, `JWT_EMISOR` y `JWT_AUDIENCIA`, con vigencia de 60 minutos
+  predeterminada y configurable. Credenciales inválidas → 401 genérico con `Response<T>`, sin
+  revelar si el usuario existe. Refresh token: vigencia de 1 hora predeterminada y configurable;
+  se persiste solo su hash en la base (tabla creada por script versionado del runner); cada
+  renovación lo invalida y entrega uno nuevo, y reusar uno invalidado → 401. Sin registro ni administración de usuarios, recuperación de
+  contraseña, MFA, proveedores externos, logout ni administración de sesiones. [Decisión]
 - Tamaño máximo del archivo recibido por Control: 10 MiB (10 485 760 bytes) predeterminado,
   configurable por variable de entorno. [README §2, §3] [Decisión]
 - Rate Limiting obligatorio; se aplica en Control al endpoint de carga y no se duplica por costumbre
@@ -373,8 +390,7 @@ Permanecen pendientes (no decididos): rotación y retención de logs; parámetro
 Polly (se fijan en las features de Control, Carga Masiva y Notificaciones); React; verificación
 operativa de Docker y SQL Server en el equipo de ejecución; la adaptación y validación del
 runner de `database/` y la limpieza de ms-control (migraciones EF Core, modelo completo y
-arranque con migraciones) quedan pendientes de una nueva feature. Refresh tokens es opcional en el
-README y no está decidido.
+arranque con migraciones) quedan pendientes de una nueva feature.
 No se adoptan las convenciones de idioma, commits ni versionado de endpoints del ejemplo Bistro.
 
 ## Governance
@@ -384,4 +400,4 @@ eliminaciones incompatibles; MINOR por principios o secciones nuevas; PATCH por 
 Toda especificación, plan y tarea MUST verificar cumplimiento de esta constitución, indicar la
 procedencia de cada obligación y justificar cualquier complejidad añadida.
 
-**Version**: 3.4.0 | **Ratified**: TODO(RATIFICATION_DATE): pendiente de aprobación del usuario | **Last Amended**: 2026-11-03
+**Version**: 3.5.0 | **Ratified**: TODO(RATIFICATION_DATE): pendiente de aprobación del usuario | **Last Amended**: 2026-11-03
