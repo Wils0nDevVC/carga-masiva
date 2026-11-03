@@ -1,6 +1,15 @@
 <!--
 Sync Impact Report
-- Versión: 3.0.0 → 3.1.0 (MINOR: se resuelven pendientes y se añaden precisiones para la Feature 005,
+- Versión: 3.1.0 → 3.2.0 (MINOR: precisiones de la Feature 006, procesamiento en ms-carga-masiva,
+  autorizadas por el usuario el 2026-11-03.)
+- Principios modificados en 3.2.0: §7 (archivo inválido → incidencia ArchivoInvalido, sin productos
+  ni reintentos, recorrido normal hasta Finalizado y notificación; archivo inexistente = fallo
+  técnico de recuperación), §8 (notificación no confirmada → Finalizado + ErrorTecnico, sin
+  recuperación automática; limitación aceptada), Pendientes (se retiran: tratamiento operativo de
+  archivos ilegibles y recuperación de mensajes no publicados en `notificaciones`). El nuevo tipo
+  de incidencia se añade al esquema con un script versionado mínimo (§6, sin cambio de la regla).
+  Resto sin cambios. Fecha de ratificación: sigue pendiente.
+- Historial 3.1.0 (referencia): Versión 3.0.0 → 3.1.0 (MINOR: se resuelven pendientes y se añaden precisiones para la Feature 005,
   recepción y registro de cargas en ms-control, por decisión del usuario del 2026-11-02.)
 - Principios modificados en 3.1.0: §5 (Data sin resultado = null incluido en el JSON; camelCase),
   §9 (Control valida también el JWT; contrato mínimo de claims `sub` + `role`; tamaño máximo de
@@ -190,6 +199,13 @@ Sync Impact Report
   queda Fallido: se conservan los periodos completados, los pendientes se registran como “No
   procesado por interrupción de la carga” (sin afirmar que fallaron) y se liberan sus reservas.
   Esto no altera el rechazo de negocio, que no detiene los demás periodos. [Decisión]
+- Archivo inválido (corrupto, sin hojas o sin los encabezados requeridos): se registra la
+  incidencia `ArchivoInvalido`, sin productos ni reintentos técnicos; la carga sigue las
+  transiciones aprobadas En proceso → Cargado → Finalizado (finalización sin productos autorizada
+  para este caso) y se notifica. Un archivo inexistente en el almacenamiento no es contenido
+  inválido: es un fallo técnico de recuperación del archivo (`ErrorTecnico`, Fallido); su ausencia
+  confirmada no se reintenta, a diferencia de los errores transitorios de acceso. [Decisión,
+  Feature 006]
 - Existente requiere un producto confirmado: no se registra si la fila original no llegó a
   persistirse. Si se revierte un periodo, sus resultados provisionales se revierten; las filas no
   procesadas se reportan como no procesadas y en una nueva carga se evalúan de nuevo contra los
@@ -234,6 +250,12 @@ Sync Impact Report
   notificación se reintenta sin reprocesar el archivo. [Decisión]
 - La notificación se publica al finalizar el procesamiento del archivo, aunque existan omisiones
   de negocio. [README §3] [Decisión]
+- Si la publicación en `notificaciones` no obtiene confirmación tras reintentos limitados, la carga
+  conserva Finalizado y se registra una incidencia `ErrorTecnico` que describe la falta de
+  confirmación, sin afirmar que el mensaje no se publicó. No hay recuperación automática, columnas
+  nuevas ni uso de incidencias como mecanismo de control, y no se republican las cargas Finalizado
+  al arrancar: no se garantiza la notificación posterior (limitación aceptada). [Decisión,
+  Feature 006]
 - Notificaciones envía el correo con MailKit y marca Notificado tras el envío exitoso.
   [README §2 y §3] [Decisión]
 - El número de tablas no está fijado: el plan justifica el modelo mínimo. [README §5] [Decisión]
@@ -309,9 +331,8 @@ Sync Impact Report
 
 ## Pendientes y no autorizado
 Permanecen pendientes (no decididos): rotación y retención de logs; parámetros de
-Polly (se fijan en las features de Control, Carga Masiva y Notificaciones); tratamiento operativo
-de archivos ilegibles y recuperación de mensajes no publicados en `notificaciones` (features del
-servicio que corresponda); contenido exacto del correo; React; verificación
+Polly (se fijan en las features de Control, Carga Masiva y Notificaciones); contenido exacto del
+correo; React; verificación
 operativa de Docker y SQL Server en el equipo de ejecución; la adaptación y validación del
 runner de `database/` y la limpieza de ms-control (migraciones EF Core, modelo completo y
 arranque con migraciones) quedan pendientes de una nueva feature. Refresh tokens es opcional en el
@@ -325,4 +346,4 @@ eliminaciones incompatibles; MINOR por principios o secciones nuevas; PATCH por 
 Toda especificación, plan y tarea MUST verificar cumplimiento de esta constitución, indicar la
 procedencia de cada obligación y justificar cualquier complejidad añadida.
 
-**Version**: 3.1.0 | **Ratified**: TODO(RATIFICATION_DATE): pendiente de aprobación del usuario | **Last Amended**: 2026-11-02
+**Version**: 3.2.0 | **Ratified**: TODO(RATIFICATION_DATE): pendiente de aprobación del usuario | **Last Amended**: 2026-11-03

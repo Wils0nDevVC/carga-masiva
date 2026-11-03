@@ -78,6 +78,8 @@ Las tres filas `SchemaMigraciones.*` describen el runner anterior y ya no forman
 
 Sin tamaños ilimitados (`MAX`): ningún campo lo necesita. Sin columna binaria del Excel.
 
+> **Precisado por la Feature 006 (2026-11-03, decisión autorizada del usuario)**: `Incidencia.Tipo` admite además `ArchivoInvalido` (archivo corrupto, sin hojas o sin encabezados requeridos), añadido con un script versionado mínimo que amplía el `CHECK`. Ver `specs/006-procesamiento-cargas/spec.md` FR-008 y FR-008a.
+
 ## Restricciones e índices
 
 - `Usuario.Email` y `Rol.Nombre` únicos.
