@@ -4,7 +4,7 @@
 
 **Created**: 2026-11-03
 
-**Status**: Draft (v1: Q1 pendiente de decisión del usuario)
+**Status**: Draft (v3: Q1 = B y Q2 resueltas por el usuario, 2026-11-03)
 
 **Input**: Consultas de solo lectura en ms-control, expuestas por el Gateway:
 - historial de cargas;
@@ -61,7 +61,20 @@ El README pide "consultar el contenido del archivo Excel subido", pero el modelo
   - las filas vacías: se omiten sin incidencia [F006].
 - Además, un producto Existente pertenece a otra carga, así que no figura entre los productos de esta.
 
-Por eso, "productos insertados" **no equivale** a "todas las filas del archivo". Las únicas fuentes de las filas originales son el Excel guardado en SeaweedFS y su lectura. La descarga del Excel está excluida por el prompt, pero leerlo no lo está.
+Por eso, "productos insertados" **no equivale** a "todas las filas del archivo". Las únicas fuentes de las filas originales son el Excel guardado en SeaweedFS y su lectura.
+
+**Decisión Q1 = B** (usuario, 2026-11-03):
+- "Contenido del archivo" son las **filas del Excel original** almacenado en SeaweedFS, sin normalizarlas, sin aplicar valores por defecto y sin reprocesarlas.
+- La lectura es solo de consulta: no modifica productos, incidencias ni estados.
+- No se reproducen estilos ni formato visual.
+- Se autoriza en esta feature la lectura del Excel desde Control con ClosedXML y el acceso existente a SeaweedFS. Esto amplía puntualmente el alcance de Control respecto de la 005, sin cambiar su flujo de recepción.
+- Los resultados y las incidencias siguen siendo la consulta de detalle (US2). No se combinan con el contenido (sin opción C).
+
+**Documentos aprobados afectados** (se amplían, no se reescriben):
+- `specs/005-recepcion-registro-cargas/spec.md` **FR-016** ("Control MUST NOT leer ni validar el contenido del Excel") y **FR-002** ("MUST NOT añadirse … contenido del archivo"). Ambos acotaban la 005. La 010 autoriza la lectura **solo para consulta** y la recepción no cambia: sigue sin leer ni validar el Excel al recibirlo.
+- `specs/005-recepcion-registro-cargas/` (contratos y plan): Control solo **escribía** en SeaweedFS; ahora también **lee** el archivo de una carga autorizada.
+- Constitución: **sin cambios**. ClosedXML ya es la biblioteca única para Excel (§12), y la §1 se cumple porque la ampliación está autorizada en esta feature.
+- `specs/006-procesamiento-cargas/`: sin cambios. Su lectura (primera hoja, encabezados en la fila 1) solo se toma como referencia de qué hoja se considera "el archivo".
 
 ## User Scenarios & Testing *(mandatory)*
 
@@ -102,26 +115,36 @@ El usuario consulta una carga por su identificador para ver su estado, el histor
    - los resultados por periodo (periodo, resultado y fecha);
    - las incidencias en orden de registro (tipo, número de fila, código de producto, periodo en texto, motivo y fecha).
 2. **Given** una carga Pendiente sin periodos ni incidencias, **When** se consulta, **Then** los periodos y las incidencias aparecen como listas vacías y el historial contiene solo Pendiente.
-3. **Given** la carga de otro usuario, **When** un Operador consulta su detalle por identificador, **Then** recibe 404 con `data` null, la misma respuesta que para una carga inexistente, sin revelar que existe.
+3. **Given** la carga de otro usuario, **When** un Operador consulta su detalle por identificador, **Then** recibe 404 «La carga no existe» con `data` null, la misma respuesta que para una carga inexistente, sin revelar que existe (Q2).
 4. **Given** cualquier carga, **When** el Administrador consulta su detalle, **Then** recibe 200.
-5. **Given** un identificador inexistente o no válido (no numérico o ≤ 0), **When** se consulta, **Then** recibe 404 o 400 respectivamente, con `Response<T>`.
+5. **Given** un identificador inexistente o no válido (no numérico o ≤ 0), **When** se consulta, **Then** recibe 404 «La carga no existe» o 400 respectivamente, con `Response<T>`.
 6. **Given** una carga Fallido o Finalizado con incidencias de notificación, **When** se consulta, **Then** el estado y las incidencias se muestran tal cual, sin recalcular ni alterar nada.
 
 ---
 
 ### User Story 3 - Consultar el contenido del archivo (Priority: P2)
 
-El usuario consulta el contenido de una carga autorizada. [README §2 "Consultar el contenido del archivo excel subido"]
+El usuario consulta las filas del Excel original de una carga autorizada, tal como se subió. [README §2 "Consultar el contenido del archivo excel subido"] [Decisión Q1 = B]
 
-**Why this priority**: Lo pide el README, pero su definición depende de Q1.
+**Why this priority**: Lo pide el README, pero el seguimiento (US1 y US2) no depende de ello.
 
-**Independent Test**: depende de Q1. Consultar el contenido de una carga propia con filas insertadas y omitidas, y el de la carga de otro usuario (404).
+**Independent Test**:
+1. Subir el Excel de ejemplo y consultar su contenido como propietario: las filas devueltas deben coincidir celda a celda con el archivo, incluidas las filas que el procesamiento omitió.
+2. Consultar el contenido de la carga de otro usuario: debe responder 404.
 
 **Acceptance Scenarios**:
 
-1. **Given** una carga autorizada, **When** se consulta su contenido, **Then** se recibe 200 con el contenido definido en Q1. *Depende de Q1.*
-2. **Given** la carga de otro usuario o una inexistente, **When** un Operador consulta su contenido, **Then** recibe 404, igual que en US2-3.
-3. **Given** una carga que aún no tiene contenido disponible según Q1 (por ejemplo, Pendiente), **When** se consulta, **Then** se recibe 200 con una lista vacía. *Depende de Q1.*
+1. **Given** una carga autorizada con su archivo disponible, **When** se consulta su contenido, **Then** se recibe 200 con:
+   - los encabezados tal como figuran en la primera fila;
+   - cada fila de datos con su número de fila en el Excel y el valor de cada celda sin normalizar. No se aplica trim, no se pone 0 en un precio vacío, no se pone "Producto " + código en un nombre vacío y no se convierte el periodo.
+   - Las celdas vacías se devuelven como vacías.
+2. **Given** una carga con filas omitidas, Existentes o de periodos rechazados, **When** se consulta su contenido, **Then** esas filas aparecen igual que las insertadas. El contenido no indica qué se insertó; eso lo da el detalle (US2).
+3. **Given** una carga en cualquier estado (incluidos Pendiente y Fallido) con su archivo disponible, **When** se consulta su contenido, **Then** se devuelven sus filas. El contenido no depende del procesamiento.
+4. **Given** la carga de otro usuario o una inexistente, **When** un Operador consulta su contenido, **Then** recibe 404, igual que en US2-3, sin leer el archivo.
+5. **Given** un archivo que existe pero no se puede leer como Excel, o que no tiene hojas, **When** se consulta su contenido, **Then** se responde **422** «El archivo no se puede leer como Excel», **nunca** con un contenido vacío (Q2).
+6. **Given** SeaweedFS caído o temporalmente inaccesible, **When** se consulta el contenido de una carga autorizada, **Then** se responde **503** «El archivo no está disponible temporalmente. Intente nuevamente más tarde», **nunca** con un contenido vacío (Q2).
+6a. **Given** SeaweedFS disponible pero sin archivo en la ruta registrada en la base, **When** se consulta el contenido, **Then** se responde **500** «No se pudo recuperar el archivo asociado a la carga» y se registra el error con el `idCarga`, sin detalles internos en la respuesta (Q2).
+7. **Given** cualquier consulta de contenido, **When** termina, **Then** no cambian los productos, las incidencias, los estados ni el archivo almacenado.
 
 ---
 
@@ -146,12 +169,23 @@ El usuario consulta el contenido de una carga autorizada. [README §2 "Consultar
 - **FR-004**: Las secciones sin datos MUST devolverse como listas vacías, no como null. [Decisión]
 
 **Contenido**
-- **FR-005**: Control MUST exponer la consulta del contenido de una carga con la definición aprobada en Q1. [README §2] [NEEDS CLARIFICATION: Q1 — ¿qué es "contenido del archivo": los datos procesados en la base o las filas originales del Excel?]
+- **FR-005**: Control MUST exponer la consulta del contenido de una carga: las filas del Excel original almacenado en SeaweedFS (ruta registrada en `CargaArchivo.RutaArchivo`), leídas con ClosedXML. [README §2] [Decisión Q1 = B]
+- **FR-005a**: El contenido MUST incluir los encabezados de la primera fila y, por cada fila siguiente del rango usado de la primera hoja, su número de fila y el valor de cada celda sin normalizar ni aplicar valores por defecto. Sin estilos ni formato visual. [Decisión Q1]
+- **FR-005b**: La lectura MUST ser solo de consulta: no escribe en la base, no modifica el archivo, no publica mensajes ni reprocesa. [Decisión Q1]
+- **FR-005c**: La autorización (FR-007 y FR-008) MUST comprobarse **antes** de leer el archivo.
+- **FR-005d**: Los errores de la consulta de contenido MUST responder con `Response<T>` (`data` null, `Code` igual al estado), sin detalles internos y nunca como un contenido vacío [Decisión Q2, 2026-11-03]:
+
+  | Caso | Código | Mensaje |
+  |---|---|---|
+  | Archivo ilegible: no es Excel o no tiene hojas | 422 | «El archivo no se puede leer como Excel». |
+  | SeaweedFS caído o temporalmente inaccesible | 503 | «El archivo no está disponible temporalmente. Intente nuevamente más tarde». |
+  | Archivo ausente en la ruta registrada en la base | 500 | «No se pudo recuperar el archivo asociado a la carga». |
+  | La carga consultada no existe (o es ajena para un Operador, FR-008) | 404 | «La carga no existe». |
 
 **Autorización** [Constitución §6] [F001 FR-002]
 - **FR-006**: Todas las consultas MUST exigir un JWT válido y el rol Administrador u Operador, validados en Control (y el JWT también en el Gateway). [Constitución §9]
 - **FR-007**: El Administrador MUST ver todas las cargas. El Operador MUST ver solo aquellas cuyo responsable es su usuario (`sub`), también en las consultas por identificador.
-- **FR-008**: Si un Operador consulta por identificador una carga ajena, la respuesta MUST ser idéntica a la de una carga inexistente (404, `data` null), para no revelar su existencia. [Decisión: mismo criterio que el 401 genérico de la F008]
+- **FR-008**: Si un Operador consulta por identificador una carga ajena (detalle o contenido), la respuesta MUST ser idéntica a la de una carga inexistente (404 «La carga no existe», `data` null), para no revelar su existencia. [Decisión: mismo criterio que el 401 genérico de la F008]
 
 **Restricciones**
 - **FR-009**: Las consultas MUST ser de solo lectura: no cambian estados, no reprocesan, no publican mensajes, no escriben incidencias ni historial. [Decisión]
@@ -162,7 +196,8 @@ El usuario consulta el contenido de una carga autorizada. [README §2 "Consultar
 - **FR-014**: Los logs MUST NOT registrar tokens ni el contenido devuelto. [Constitución §10]
 
 **Fuera de alcance** [Decisión]:
-- Paginación, filtros, ordenaciones configurables, exportaciones, descarga del Excel, caché y WebSockets.
+- Paginación, filtros, ordenaciones configurables, exportaciones, descarga del Excel (el archivo binario), caché y WebSockets.
+- Reproducir estilos o formato visual, leer hojas distintas de la primera y combinar el contenido con los resultados (opción C).
 - Endpoints de modificación o reintento.
 - Cambios de esquema y de estados.
 
@@ -173,13 +208,16 @@ El usuario consulta el contenido de una carga autorizada. [README §2 "Consultar
 - **CargaEstadoHistorial** (mapeada): historial de estados.
 - **Incidencia** (mapeada): incidencias de la carga.
 - **CargaPeriodo** (no mapeada en Control; **mapeo adicional justificado**): periodo, resultado y fecha, necesarios para "resultados por periodo" (FR-003). Solo lectura.
-- **Producto** (no mapeada en Control): se mapea **solo si** Q1 incluye los productos insertados. Código, nombre, precio y periodo, a través de `CargaPeriodo`. Solo lectura.
+- **Producto**: **no se mapea**, porque Q1 = B no usa los productos insertados.
+- **Archivo Excel en SeaweedFS** (no es una entidad de la base): se lee por `CargaArchivo.RutaArchivo`, solo para la consulta de contenido.
 
 ## Success Criteria *(mandatory)*
 
 ### Measurable Outcomes
 
 - **SC-001**: Con cargas de 2 Operadores, el Administrador ve el 100 % de las cargas y cada Operador solo las suyas, en el historial, en el detalle y en el contenido.
+- **SC-001a**: Para el Excel de ejemplo (200 filas de datos), el contenido devuelve 200 filas cuyos valores coinciden al 100 % con las celdas del archivo, incluidas las que el procesamiento omitió.
+- **SC-001b**: En el 100 % de los casos, un archivo ilegible devuelve 422, SeaweedFS inaccesible devuelve 503 y un archivo ausente devuelve 500, con sus mensajes de FR-005d; nunca 200 con un contenido vacío.
 - **SC-002**: El 100 % de los accesos de un Operador a cargas ajenas por identificador (en el detalle y en el contenido) devuelven la misma respuesta que una carga inexistente (404).
 - **SC-003**: Para una carga procesada, el detalle muestra todas las entradas del historial de estados, todos los periodos y todas las incidencias que existen en la base para esa carga (recuento igual).
 - **SC-004**: Las consultas sin datos (historial vacío o carga Pendiente) devuelven 200 con listas vacías, nunca un error.
@@ -193,10 +231,18 @@ El usuario consulta el contenido de una carga autorizada. [README §2 "Consultar
 - **Orden**: el historial va de la carga más reciente a la más antigua. Los estados, periodos e incidencias, en orden cronológico o de registro. No hay ordenación configurable.
 - **Límite de tamaño**: no hay límite en el número de cargas, periodos o incidencias devueltos (sin paginación, por exclusión expresa).
 - **Rutas HTTP**: los nombres concretos (por ejemplo, `GET /cargas`, `GET /cargas/{id}` y la de contenido) se fijan en el plan, sin prefijos nuevos en el Gateway.
+- **Hoja leída**: solo la primera hoja, la misma que procesa la F006 (FR-007). El resto de hojas no forma parte del contenido.
+- **Valor de celda**: el valor almacenado en la celda (texto, número, fecha o booleano) en su representación textual invariante, sin aplicar el formato visual de Excel. El detalle de la representación se fija en el plan.
+- **Filas vacías intermedias**: se devuelven como filas con celdas vacías (no se omiten), porque no se normaliza.
 - **Pruebas**: con Postman o curl. No hay tests automatizados [Constitución §11].
+
+## Decisiones del usuario (2026-11-03)
+
+| # | Pregunta | Decisión | Requisitos |
+|---|---|---|---|
+| Q1 | ¿Qué es "contenido del archivo"? | **B**: filas del Excel original en SeaweedFS, sin normalizar, sin valores por defecto ni reprocesar; solo consulta; sin estilos. Se autoriza leer desde Control con ClosedXML y el acceso existente a SeaweedFS (amplía la 005 sin cambiar la recepción). Sin opción C | FR-005 a FR-005c, US3, Key Entities, SC-001a |
+| Q2 | Errores de la consulta de contenido y de carga inexistente | Ilegible (no es Excel o no tiene hojas) → **422** «El archivo no se puede leer como Excel». SeaweedFS caído o inaccesible → **503** «El archivo no está disponible temporalmente. Intente nuevamente más tarde». Archivo ausente en la ruta registrada → **500** «No se pudo recuperar el archivo asociado a la carga». Carga inexistente (o ajena, FR-008) → **404** «La carga no existe» | FR-005d, FR-008, US2-3, US2-5, US3-5, US3-6, SC-001b |
 
 ## Asuntos pendientes (no son requisitos aprobados)
 
-| # | Pregunta | Opciones | Criterios afectados |
-|---|---|---|---|
-| Q1 | ¿Qué es "contenido del archivo"? | **A — Datos procesados (base de datos)**: productos insertados por la carga (código, nombre, precio y periodo) más las incidencias, que ya explican las filas no insertadas. No refleja todas las filas originales (ver Contexto). Requiere mapear `Producto` en Control; no lee el Excel. **B — Filas originales del Excel**: Control lee el archivo desde SeaweedFS y devuelve sus filas tal cual (`Periodo`, `CodigoProducto`, `NombreProducto`, `Precio`, número de fila), sin descargar el archivo. Refleja exactamente lo subido, pero añade ClosedXML y la lectura de SeaweedFS a Control (Control hoy solo escribe en SeaweedFS y la F005 FR-016 le prohibió leer el Excel en esa feature). **C — Ambas** | FR-005, US3, Key Entities, SC-001 |
+Ninguno que requiera decisión. Se fijan en el plan, sin bloquear: los nombres de las rutas, la forma JSON exacta de las respuestas y la representación textual de los valores de celda.
