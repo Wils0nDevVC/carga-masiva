@@ -114,6 +114,15 @@ services:
     environment:
       ASPNETCORE_ENVIRONMENT: Production
       ConnectionStrings__Default: "Server=sqlserver,1433;Database=${DB_NAME:-CargaMasivaApp};User Id=sa;Password=${MSSQL_SA_PASSWORD:?Defina MSSQL_SA_PASSWORD};Encrypt=True;TrustServerCertificate=True"
+      Jwt__Clave: ${JWT_CLAVE:?Defina JWT_CLAVE en .env (ver .env.example)}
+      Jwt__Emisor: ${JWT_EMISOR:-ms-autenticacion}
+      Jwt__Audiencia: ${JWT_AUDIENCIA:-carga-masiva}
+      Jwt__VigenciaAccesoMinutos: ${JWT_VIGENCIA_ACCESO_MINUTOS:-60}
+      Jwt__VigenciaRefreshMinutos: ${JWT_VIGENCIA_REFRESH_MINUTOS:-60}
+      UsuariosIniciales__Administrador__Email: ${ADMIN_EMAIL:?Defina ADMIN_EMAIL en .env (ver .env.example)}
+      UsuariosIniciales__Administrador__Clave: ${ADMIN_CLAVE:?Defina ADMIN_CLAVE en .env (ver .env.example)}
+      UsuariosIniciales__Operador__Email: ${OPERADOR_EMAIL:?Defina OPERADOR_EMAIL en .env (ver .env.example)}
+      UsuariosIniciales__Operador__Clave: ${OPERADOR_CLAVE:?Defina OPERADOR_CLAVE en .env (ver .env.example)}
     ports:
       - "8081:8080"
     volumes:

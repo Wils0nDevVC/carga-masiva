@@ -35,3 +35,14 @@ Verificación manual (constitución §11). Los contratos están en `contracts/`.
 ## Cierre
 
 Eliminar `CargaMasivaApp_F008`, volver al arranque normal sobre `CargaMasivaApp` (el runner aplica V005) y comprobar que todo queda `healthy`. Registrar en "Resultados" lo ejecutado y lo no ejecutado.
+
+## Resultados (implementación, 2026-11-03)
+
+**Estado: implementada y compilada; NO verificada en ejecución.** Ningún escenario (1–13) se ha ejecutado.
+
+| Comprobación | Estado |
+|---|---|
+| Compilación (`dotnet build Acity.Autenticacion.slnx`) | **Hecha**: 0 advertencias, 0 errores |
+| `docker compose config -q` | **Hecha**, con valores ficticios solo en el entorno del comando; sin `ADMIN_*` y `OPERADOR_*` falla, como estaba previsto |
+| V005 aplicado e ingeniería inversa (T005) | **No ejecutado**: pendiente de autorización |
+| Escenarios 1–13 | **No ejecutados**: faltan los valores de `ADMIN_*` y `OPERADOR_*` en `.env` |

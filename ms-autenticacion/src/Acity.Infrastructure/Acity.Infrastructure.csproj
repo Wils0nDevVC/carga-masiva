@@ -5,7 +5,14 @@
   </ItemGroup>
 
   <ItemGroup>
+    <!-- Framework compartido del host: PasswordHasher (Microsoft.Extensions.Identity.Core) y opciones; no es un paquete NuGet. -->
+    <FrameworkReference Include="Microsoft.AspNetCore.App" />
+  </ItemGroup>
+
+  <ItemGroup>
     <PackageReference Include="Microsoft.EntityFrameworkCore.SqlServer" Version="10.0.14" />
+    <!-- Emisión del JWT; misma versión que valida Control (JwtBearer 10.0.14). -->
+    <PackageReference Include="Microsoft.IdentityModel.JsonWebTokens" Version="8.19.2" />
     <PackageReference Include="System.Security.Cryptography.Pkcs" Version="10.0.14" />
   </ItemGroup>
 
