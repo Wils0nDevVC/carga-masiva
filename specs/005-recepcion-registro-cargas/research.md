@@ -119,11 +119,13 @@ Orden en el handler `RegistrarCargaCommandHandler`:
 - `ms-control`: `depends_on` añade `rabbitmq` (`service_healthy`) y `seaweedfs` (`service_started`); variables `Jwt__*`, `RabbitMq__Host/Puerto/Usuario/Clave`, `SeaweedFs__FilerUrl`. Los demás servicios no cambian. [Spec FR-031]
 - `.env.example`: `RABBITMQ_USER`, `RABBITMQ_PASSWORD`, `JWT_CLAVE` (vacíos, obligatorios con `:?`), `JWT_EMISOR` (`ms-autenticacion`), `JWT_AUDIENCIA` (`carga-masiva`). Sin valores secretos en el repositorio. [Dec §6, §10]
 
-## Abiertos (se comprueban en la implementación)
+## Abiertos (estado tras la implementación; detalle en `quickstart.md`, "Resultados")
 
-1. Etiquetas exactas de las imágenes de RabbitMQ y SeaweedFS (Docker Hub inaccesible en esta sesión).
-2. Que `BasicPublishAsync` espere la confirmación con seguimiento activo y lance `PublishException` ante `nack`/`return` (D-07).
-3. Código de estado del `PUT` del filer y comportamiento con `-filer` en un solo contenedor (D-06).
-4. Valores predeterminados de Kestrel/`FormOptions` y la excepción exacta al exceder el límite (D-05).
-5. Números de error SQL transitorios y excepciones reintentables de RabbitMQ 7.x (D-10).
-6. Validación en el equipo de evaluación: no realizada (motor amd64 emulado en este equipo).
+1. **Resuelto**: `rabbitmq:4.1.8-management` y `chrislusf/seaweedfs:3.97` (arm64 nativas en este equipo).
+2. **Parcial**: con seguimiento activo, `BasicPublishAsync` completó solo tras la confirmación (los mensajes estaban en la cola al responder 202). No se provocaron `nack` ni `return` (requieren un broker que rechace o un intercambio sin cola enlazada).
+3. **Resuelto**: el filer en un solo contenedor (`server -filer`) tarda unos 20 s en responder; `PUT` → 201 y repetir el `PUT` sobrescribe.
+4. **Resuelto**: con los límites fijados a 11 534 336, el servidor corta por encima y la respuesta es 413 con `Response<T>`. Hallazgo: el enlace de modelos de `[ApiController]` leía antes el formulario y devolvía un `ProblemDetails`; se corrigió con el filtro `SinEnlaceDeFormularioAttribute`.
+5. **Parcial**: observadas `BrokerUnreachableException` (RabbitMQ detenido) y `HttpRequestException` sin código (SeaweedFS detenido o sin red), ambas reintentadas. Los números SQL transitorios no se provocaron.
+6. **Pendiente**: validación en el equipo de evaluación no realizada (motor amd64 emulado en este equipo).
+
+**Desviaciones de implementación** (mínimas, sin cambiar el diseño): `Microsoft.Extensions.Logging.Abstractions` 10.0.14 en Application (logs del handler, FR-029); `FrameworkReference Microsoft.AspNetCore.App` en Infrastructure (enlace de opciones e `IHttpClientFactory`; no es paquete NuGet); `CargaArchivoOptions` se inyecta al validador como singleton (sin `IOptions` en Application); filtro `SinEnlaceDeFormularioAttribute` (D-05).

@@ -47,6 +47,34 @@ services:
       MSSQL_SA_PASSWORD: ${MSSQL_SA_PASSWORD:?Defina MSSQL_SA_PASSWORD}
     restart: "no"
 
+  # Intermediario de mensajes (README s2/s4): cola carga_masiva (Feature 005). Gestion en 15672 para la verificacion.
+  rabbitmq:
+    image: rabbitmq:4.1.8-management
+    environment:
+      RABBITMQ_DEFAULT_USER: ${RABBITMQ_USER:?Defina RABBITMQ_USER en .env (ver .env.example)}
+      RABBITMQ_DEFAULT_PASS: ${RABBITMQ_PASSWORD:?Defina RABBITMQ_PASSWORD en .env (ver .env.example)}
+    ports:
+      - "15672:15672"
+    volumes:
+      - rabbitmq-data:/var/lib/rabbitmq
+    healthcheck:
+      test: ["CMD", "rabbitmq-diagnostics", "-q", "ping"]
+      interval: 10s
+      timeout: 10s
+      retries: 30
+      start_period: 20s
+    restart: "no"
+
+  # Almacenamiento de los Excel (README s2/s9): maestro, volumen y filer en un contenedor; filer HTTP en 8888.
+  seaweedfs:
+    image: chrislusf/seaweedfs:3.97
+    command: server -dir=/data -filer
+    ports:
+      - "8888:8888"
+    volumes:
+      - seaweedfs-data:/data
+    restart: "no"
+
   ms-control:
     build:
       context: ./ms-control
@@ -54,9 +82,21 @@ services:
     depends_on:
       database-runner:
         condition: service_completed_successfully
+      rabbitmq:
+        condition: service_healthy
+      seaweedfs:
+        condition: service_started
     environment:
       ASPNETCORE_ENVIRONMENT: Production
       ConnectionStrings__Default: "Server=sqlserver,1433;Database=${DB_NAME:-CargaMasivaApp};User Id=sa;Password=${MSSQL_SA_PASSWORD:?Defina MSSQL_SA_PASSWORD};Encrypt=True;TrustServerCertificate=True"
+      Jwt__Clave: ${JWT_CLAVE:?Defina JWT_CLAVE en .env (ver .env.example)}
+      Jwt__Emisor: ${JWT_EMISOR:-ms-autenticacion}
+      Jwt__Audiencia: ${JWT_AUDIENCIA:-carga-masiva}
+      RabbitMq__Host: rabbitmq
+      RabbitMq__Puerto: "5672"
+      RabbitMq__Usuario: ${RABBITMQ_USER:?Defina RABBITMQ_USER}
+      RabbitMq__Clave: ${RABBITMQ_PASSWORD:?Defina RABBITMQ_PASSWORD}
+      SeaweedFs__FilerUrl: http://seaweedfs:8888
     ports:
       - "8082:8080"
     volumes:
@@ -117,6 +157,8 @@ services:
 
 volumes:
   sqlserver-data:
+  rabbitmq-data:
+  seaweedfs-data:
   logs-control:
   logs-autenticacion:
   logs-carga-masiva:
