@@ -35,11 +35,28 @@ Postman/
 - Para ejecutar el proyecto debe hacer login ```auth/login```, con las credencials colocas en el ```.env```, que por razones de prueba se subio al repsitorio.
 
 ```
-ADMIN_EMAIL=
-ADMIN_CLAVE=
-OPERADOR_EMAIL=
-OPERADOR_CLAVE=
+ADMIN_EMAIL=admin@carga-masiva.test
+ADMIN_CLAVE=Cme1cac81b3d4663e3aA1!
+OPERADOR_EMAIL=operador@carga-masiva.test
+OPERADOR_CLAVE=Cme1cac81b3d4663e3aA1!
 ```
+
+### Frontend
+- Directorio en la raíz: ```/cargamasiva_front``` (React, TypeScript y Vite). Se levanta con el mismo ```docker compose up -d --build``` como el servicio ```frontend```.
+- Se abre en:
+```
+http://localhost:3000
+```
+- Inicia en el login: ```http://localhost:3000``` redirige a ```/historial``` y, sin sesión, a ```http://localhost:3000/login```. Use las mismas credenciales del ```.env``` indicadas arriba.
+
+| Pantalla | Ruta |
+|---|---|
+| Login | http://localhost:3000/login |
+| Subida de Excel | http://localhost:3000/subir |
+| Historial de cargas | http://localhost:3000/historial |
+| Detalle de una carga | http://localhost:3000/historial/{idCarga} |
+
+- El frontend solo consume el Gateway: nginx reenvía ```/auth``` y ```/cargas``` a ```http://api-gateway:8080```.
 
 
 ### Direcciones locales
@@ -93,3 +110,7 @@ http://localhost:8025
 | Publicación en RabbitMQ | Reintentos limitados y confirmación del broker |
 | Consumo | Confirmación manual y recuperación de cargas interrumpidas |
 | Correo | Reintentos limitados sin reprocesar el Excel |
+
+
+## Desarrollo con SDD y Spec Kit
+El proyecto se implementó con el enfoque Spec-Driven Development (SDD), utilizando GitHub Spec Kit integrado con Claude Code. El desarrollo estuvo guiado por el criterio y la experiencia del desarrollador senior, quien definió el alcance, tomó las decisiones técnicas y revisó los resultados para cumplir los requisitos del reto tecnico sin añadir complejidad innecesaria.
