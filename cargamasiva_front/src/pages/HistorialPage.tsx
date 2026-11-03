@@ -32,6 +32,7 @@ export default function HistorialPage() {
                 <th className="px-4 py-2">Recepción</th>
                 <th className="px-4 py-2">Estado</th>
                 <th className="px-4 py-2">Fin</th>
+                <th className="px-4 py-2"><span className="sr-only">Acciones</span></th>
               </tr>
             </thead>
             <tbody className="divide-y">
@@ -53,6 +54,14 @@ export default function HistorialPage() {
                     <EstadoCarga estado={carga.estado} />
                   </td>
                   <td className="px-4 py-2 whitespace-nowrap"><FechaLocal iso={carga.fechaFin} /></td>
+                  <td className="px-4 py-2 text-right">
+                    <Link
+                      to={`/historial/${carga.idCarga}`}
+                      className="inline-block rounded bg-blue-600 px-3 py-1 text-xs font-medium text-white hover:bg-blue-700"
+                    >
+                      Ver detalle
+                    </Link>
+                  </td>
                 </tr>
               ))}
             </tbody>
