@@ -12,3 +12,13 @@ En el navegador, `http://localhost:3000/historial`, con sesión. Para las subida
 | 6 | Detener `api-gateway` con la página abierta y luego arrancarlo | Mensaje de error con la tabla anterior; desaparece al recuperarse | US1-6 |
 | 7 | Administrador frente a Operador | El Administrador ve todas las cargas; el Operador, solo las suyas | SC-003 |
 | 8 | Página abierta 5 minutos | Ningún 429 ni error en la consola | SC-004 |
+
+## Resultados (implementación, 2026-11-03)
+
+`listarCargas()` se ejecutó con el módulo real (`tsx` desde el scratchpad y el cliente de la 011) contra nginx (`:3000`), sobre `CargaMasivaApp`. Fueron solo lecturas: no se crearon ni modificaron datos.
+
+| # | Resultado |
+|---|---|
+| 7 (llamada) | Administrador: 2 cargas, de `operador@…` y de `admin@…`. Operador: 1 carga, solo la suya. Campos: `estado, fechaFin, fechaRecepcion, idCarga, nombreArchivo, usuario` (contrato F010) |
+| 8 (llamada) | 20 consultas seguidas: 0 respuestas 429 (64 ms) |
+| 1–6 y 8 (interfaz y *polling*) | **No ejecutados**: requieren un navegador (no había ninguno en la sesión). El hook `useHistorialCargas` necesita React montado |
