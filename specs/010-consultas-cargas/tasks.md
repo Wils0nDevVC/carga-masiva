@@ -29,7 +29,7 @@
   - `ObtenerDetalleAsync(long idCarga, int usuarioId, bool esAdministrador, CancellationToken ct)` → `CargaDetalleDto?`.
   - `ObtenerArchivoAsync(long idCarga, int usuarioId, bool esAdministrador, CancellationToken ct)` → `(string NombreArchivo, string RutaArchivo)?`.
   - Si la carga no existe o es ajena para un Operador, devuelve `null` (FR-008).
-- [ ] T003 **Manual**: ingeniería inversa de `dbo.CargaPeriodo` (`dotnet ef dbcontext scaffold … --table CargaPeriodo`), con la salida fuera del repositorio, sobre la base temporal `CargaMasivaApp_F010` creada por el runner. Contrastar con data-model.md.
+- [x] T003 **Manual**: ingeniería inversa de `dbo.CargaPeriodo` (`dotnet ef dbcontext scaffold … --table CargaPeriodo`), con la salida fuera del repositorio, sobre la base temporal `CargaMasivaApp_F010` creada por el runner. Contrastar con data-model.md.
 - [x] T004 [P] Crear `ms-control/src/Acity.Domain/Entities/CargaPeriodo.cs` a partir de T003, solo con `long Id`, `long CargaId`, `string Periodo` ("char(7)"), `string Resultado` ("varchar(20)") y `DateTime FechaResultado`. `PeriodoReservado` no se mapea (research D-04).
 - [x] T005 Crear `ms-control/src/Acity.Infrastructure/Persistence/Configurations/CargaPeriodoConfiguration.cs`:
   - `ToTable("CargaPeriodo")` y la clave `Id`.
@@ -122,8 +122,14 @@
 
 ## Estado de la implementación (2026-11-03)
 
-- **22 de 23 tareas hechas.** Compilación de `ms-control` y `api-gateway`: 0 advertencias, 0 errores. Escenarios 1–15 ejecutados sobre `CargaMasivaApp_F010`; el detalle está en `quickstart.md`.
-- **T003 sin marcar**: la ingeniería inversa no estaba autorizada. `CargaPeriodo` (T004 y T005) se escribió a partir de data-model.md y se contrastó con el catálogo de SQL Server (`sys.columns` y `sys.foreign_keys`), sin diferencias: `Id` bigint identity, `CargaId` bigint, `Periodo` char(7), `Resultado` varchar(20), `FechaResultado` datetime2 y `FK_CargaPeriodo_Carga`. `PeriodoReservado` se omite a propósito. Falta el *scaffold* si el usuario lo autoriza.
+- **23 de 23 tareas hechas.** Compilación de `ms-control` y `api-gateway`: 0 advertencias, 0 errores. Escenarios 1–15 ejecutados sobre `CargaMasivaApp_F010`; el detalle está en `quickstart.md`.
+- **T003 hecha** (autorizada por el usuario, 2026-11-03): `dotnet ef dbcontext scaffold` 10.0.14 de `CargaPeriodo` sobre `CargaMasivaApp_F010`, con la salida en el scratchpad (fuera del repositorio).
+  - **Coincide** con `CargaPeriodo.cs` y `CargaPeriodoConfiguration.cs` en `Id`, `CargaId`, `Periodo` (`HasMaxLength(7)`, `IsUnicode(false)`, `IsFixedLength()`), `Resultado` (`HasMaxLength(20)`, `IsUnicode(false)`), `FechaResultado` y FK a `CargaArchivo` con `ClientSetNull`.
+  - **Omisiones intencionadas**: `PeriodoReservado` (no se consulta), las navegaciones, los índices únicos `UQ_CargaPeriodo_Carga_Periodo` y `UX_CargaPeriodo_PeriodoReservado` (solo afectan a escrituras) y `HasConstraintName` (solo afecta a migraciones). Control es de solo lectura sobre esta tabla.
+  - Se conserva el código, sin cambios. Antes ya se había contrastado con `sys.columns` sin diferencias.
+- **Pendiente que requiere decisión** (no es una tarea de esta lista; se informa al usuario):
+  - **Representación de un error de fórmula**: devuelve `"DivisionByZero"` (nombre del enumerado de ClosedXML) en lugar del texto de Excel `#DIV/0!` que fija research D-06. Es un incumplimiento del plan detectado en la verificación; no se corrigió.
+  - **Fórmula sin valor en caché**: ClosedXML la evalúa (`=3*3` → `"9"`). El contrato ("valor almacenado") no define este caso: ambigüedad.
 - **Ajuste respecto a T002**: `ObtenerArchivoAsync` devuelve el `record ArchivoCarga(NombreArchivo, RutaArchivo)` en lugar de una tupla, por legibilidad.
 
 ## Dependencias y orden

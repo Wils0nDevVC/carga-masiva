@@ -49,7 +49,7 @@ Borrar solo los archivos y correos de esta prueba, eliminar `CargaMasivaApp_F010
 | # | Resultado |
 |---|---|
 | 1 | El Administrador ve [5, 4, 3, 2, 1]; el Operador A, [5, 4, 2, 1]; el Operador B, [3], en orden descendente. Campos: `idCarga`, `nombreArchivo`, `usuario`, `fechaRecepcion`, `estado`, `fechaFin`. Fechas con `Z` (Abierto 1 confirmado) |
-| 2 | Cubierto por el 6 (listas vacías). No se probó un usuario sin ninguna carga: todos los usuarios de la prueba tenían cargas |
+| 2 | Verificación complementaria (ver abajo): un Operador C sin cargas recibe 200 `{"data":[],"isSuccess":true,"message":"OK","code":200,"errors":null}` a través del Gateway y directo; la carga del Operador A no aparece |
 | 3 | Sin token por el Gateway: 401; sin token directo a Control: 401; token alterado: 401 |
 | 4 | 20 `GET /cargas` seguidos: todos 200, ningún 429; la subida posterior da 202 |
 | 5 | Detalle de la carga 1: historial Pendiente → En proceso → Cargado → Finalizado → Notificado; 3 periodos y 84 incidencias, iguales a los recuentos de la base |
@@ -65,7 +65,7 @@ Borrar solo los archivos y correos de esta prueba, eliminar `CargaMasivaApp_F010
 | 14 | `/cargas`, `/cargas/1`, `/cargas/999999` y `/cargas/1/contenido`: mismos estados y cuerpos a través del Gateway y directo. Abierto 3 confirmado: Ocelot distingue `/cargas/{id}` de `/cargas/{id}/contenido` sin `Priority` |
 | 15 | 2136 líneas de log de Control y del Gateway (contenedor y archivo): 0 tokens, 0 valores de celda, 0 contraseñas o `JWT_CLAVE` y 0 `Bearer ` |
 
-**No verificado**: Abierto 2 (valor en caché de las fórmulas): el Excel de casos no contenía fórmulas.
+**Abierto 2**: verificado en la verificación complementaria (ver abajo), con dos hallazgos pendientes de decisión.
 
 ### Cierre (T023)
 
@@ -73,3 +73,19 @@ Borrar solo los archivos y correos de esta prueba, eliminar `CargaMasivaApp_F010
 - Colas con 0 mensajes.
 - Arranque normal sobre `CargaMasivaApp`, con todos los servicios `healthy`.
 - `CargaMasivaApp_F010` eliminada; quedan `CargaMasiva`, `CargaMasivaApp` y `CargaMasivaDb`.
+
+## Verificación complementaria (2026-11-03): T003, fórmulas y escenario 2
+
+Base temporal nueva `CargaMasivaApp_F010`, con toda la pila apuntando a ella. Datos aislados:
+- **Operador C** sin cargas, creado por SQL con hash `PasswordHasher`; la contraseña es aleatoria, no se imprimió y ya se borró.
+- **Carga 1 del Operador A**, insertada por SQL en estado Pendiente y apuntando a `seaweed://cargas/f010/formulas.xlsx`.
+
+| Comprobación | Resultado |
+|---|---|
+| T003 (ingeniería inversa autorizada) | El *scaffold* de `CargaPeriodo` coincide con la entidad y la configuración actuales; solo difieren omisiones intencionadas (ver `tasks.md`). Código conservado sin cambios |
+| Escenario 2 | El Operador C pide `GET /cargas` (Gateway y directo): 200 `{"data":[],"isSuccess":true,"message":"OK","code":200,"errors":null}`. El Administrador ve la carga 1 de A, que no aparece en el historial de C. C pide `GET /cargas/1`: 404 «La carga no existe.» |
+| Fórmulas con valor en caché | Archivo temporal con los valores en caché escritos como los guarda Excel. `=2+3` → `"5"`, `=A2*2` → `"10"`, `="Hola "&"mundo"` → `"Hola mundo"`, `=A3*2` → `"20"`, `=A3>5` → `"true"`. **`=1+1` con 999 en caché → `"999"`**: se devuelve el valor almacenado, sin recalcular, como fija research D-06 |
+| **Hallazgo 1, contra el contrato** | `=1/0` con `#DIV/0!` en caché → `"DivisionByZero"` (nombre del enumerado de ClosedXML). Research D-06 fija el texto del error (`#DIV/0!`). **No se corrigió**; requiere decisión |
+| **Hallazgo 2, ambigüedad** | `=3*3` **sin** valor en caché (ClosedXML no guarda valores en caché al crear archivos; Excel sí) → `"9"`: ClosedXML la evalúa al leerla. El contrato ("valor almacenado") no define el caso sin valor almacenado. No se añadió ni se quitó ningún recálculo |
+| Logs (Control y Gateway, 15 min) | 0 de 3 tokens emitidos, 0 valores de celda y 0 contraseñas |
+| Cierre | `cargas/f010/formulas.xlsx` borrado (204); `CargaMasivaApp_F010` eliminada; arranque normal sobre `CargaMasivaApp` con todo `healthy`; la base principal sigue con 0 cargas |
