@@ -1,6 +1,19 @@
 <!--
 Sync Impact Report
-- Versión: 3.4.0 → 3.5.0 (MINOR: decisiones del usuario de la Feature 008, autenticación,
+- Versión: 3.5.0 → 3.6.0 (MINOR: fundación del frontend opcional por decisión del usuario,
+  2026-11-03, con autorización expresa de enmienda.) Principios modificados: §11 (el cliente web
+  React del README, opcional, se implementa con React, TypeScript y Vite; React Router, Axios con
+  interceptores y Tailwind CSS; responsabilidades en pages, components, models, api, hooks y
+  contexto de autenticación; consume solo el Gateway; sesión y renovación según el contrato de
+  Autenticación; Postman se conserva), Pendientes (se retira "React"; se añaden la ubicación del
+  frontend en el monorepo, su despliegue y el acceso del navegador al Gateway). Distinción: el
+  README deja el frontend como opcional valorado (React 16+, componentes; en su defecto, colecciones
+  Postman); TypeScript, Vite, React Router, Axios, Tailwind CSS y la separación de
+  responsabilidades son decisiones del usuario. Sin cambios en §2 ni §9: sus efectos quedan como
+  pendientes. Documentos afectados: ninguno de las features 001–010 (el frontend consume los
+  contratos ya aprobados de las features 008, 009 y 010); plantillas sin cambios. Resto sin cambios;
+  la fecha de ratificación sigue pendiente.
+- Historial 3.5.0 (referencia): Versión 3.4.0 → 3.5.0 (MINOR: decisiones del usuario de la Feature 008, autenticación,
   2026-11-03, con autorización expresa de enmienda.) Principios modificados: §9 (Autenticación:
   refresh tokens incluidos con `POST /auth/refresh`; token de acceso con vigencia de 60 minutos
   predeterminada y configurable, HS256 con JWT_CLAVE/JWT_EMISOR/JWT_AUDIENCIA; credenciales
@@ -370,8 +383,21 @@ Sync Impact Report
 - Orden de arranque en Compose: SQL Server disponible → runner de `database/` completado
   correctamente → microservicios. Si el runner falla, Compose no arranca los microservicios
   dependientes. No se añade otro microservicio ni un ejecutable .NET para migraciones. [Decisión]
-- Postman es el cliente y entregable actual. React queda pendiente de confirmación: no se
-  implementa ni se añaden dependencias anticipadas. [README §2 y §6] [Decisión]
+- Postman se conserva como cliente y entregable: colecciones con cada petición. [README §2]
+  [Decisión]
+- Cliente web: el README lo deja como opcional valorado (React 16+, uso de componentes). [README
+  §2, §4 Frontend] Por decisión del usuario (no es exigencia del README) se implementa con React,
+  TypeScript y Vite; React Router para la navegación, Axios para HTTP y sus interceptores, y
+  Tailwind CSS para los estilos. [Decisión del usuario]
+- Responsabilidades separadas en pages, components, models, api, hooks y un contexto de
+  autenticación. Los models representan los contratos de la API; los hooks se crean por
+  funcionalidad cuando sean necesarios. No se crean carpetas ni capas vacías. [Decisión del
+  usuario]
+- El cliente web consume únicamente el Gateway, nunca los microservicios directamente. La gestión
+  de sesión y la renovación del token respetan el contrato aprobado de Autenticación (token de
+  acceso, refresh token con rotación, 401 genérico) y los errores siguen `Response<T>`. Sin
+  dependencias, patrones ni funcionalidades adicionales a las autorizadas. [Decisión del usuario]
+  [§5] [§9]
 - Por decisión del usuario NO se crean proyectos ni suites de tests automatizados; esto no elimina
   la revisión documental ni la comprobación manual del flujo funcional. [Decisión]
 
@@ -387,10 +413,13 @@ Sync Impact Report
 
 ## Pendientes y no autorizado
 Permanecen pendientes (no decididos): rotación y retención de logs; parámetros de
-Polly (se fijan en las features de Control, Carga Masiva y Notificaciones); React; verificación
+Polly (se fijan en las features de Control, Carga Masiva y Notificaciones); verificación
 operativa de Docker y SQL Server en el equipo de ejecución; la adaptación y validación del
 runner de `database/` y la limpieza de ms-control (migraciones EF Core, modelo completo y
-arranque con migraciones) quedan pendientes de una nueva feature.
+arranque con migraciones) quedan pendientes de una nueva feature. Del cliente web: su directorio
+contenedor en el monorepo (§2 enumera los directorios de la raíz y no lo incluye), su despliegue
+(Dockerfile y servicio en Compose, §11) y el acceso del navegador al Gateway desde otro origen
+(CORS u origen común; §9 define un Gateway mínimo).
 No se adoptan las convenciones de idioma, commits ni versionado de endpoints del ejemplo Bistro.
 
 ## Governance
@@ -400,4 +429,4 @@ eliminaciones incompatibles; MINOR por principios o secciones nuevas; PATCH por 
 Toda especificación, plan y tarea MUST verificar cumplimiento de esta constitución, indicar la
 procedencia de cada obligación y justificar cualquier complejidad añadida.
 
-**Version**: 3.5.0 | **Ratified**: TODO(RATIFICATION_DATE): pendiente de aprobación del usuario | **Last Amended**: 2026-11-03
+**Version**: 3.6.0 | **Ratified**: TODO(RATIFICATION_DATE): pendiente de aprobación del usuario | **Last Amended**: 2026-11-03
