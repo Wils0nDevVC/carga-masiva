@@ -1,3 +1,4 @@
+using Acity.Api.Consumers;
 using Acity.Api.Handlers;
 using Acity.Application;
 using Acity.Common.Helpers;
@@ -19,6 +20,7 @@ try
     builder.Services.AddExceptionHandler<GlobalExceptionHandler>();
     builder.Services.AddApplication();
     builder.Services.AddInfrastructure(builder.Configuration);
+    builder.Services.AddHostedService<ConsumidorNotificaciones>();
 
     var app = builder.Build();
 

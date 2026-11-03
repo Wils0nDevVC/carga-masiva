@@ -154,9 +154,21 @@ services:
     depends_on:
       database-runner:
         condition: service_completed_successfully
+      rabbitmq:
+        condition: service_healthy
     environment:
       ASPNETCORE_ENVIRONMENT: Production
       ConnectionStrings__Default: "Server=sqlserver,1433;Database=${DB_NAME:-CargaMasivaApp};User Id=sa;Password=${MSSQL_SA_PASSWORD:?Defina MSSQL_SA_PASSWORD};Encrypt=True;TrustServerCertificate=True"
+      RabbitMq__Host: rabbitmq
+      RabbitMq__Puerto: "5672"
+      RabbitMq__Usuario: ${RABBITMQ_USER:?Defina RABBITMQ_USER}
+      RabbitMq__Clave: ${RABBITMQ_PASSWORD:?Defina RABBITMQ_PASSWORD}
+      Smtp__Host: ${SMTP_HOST:?Defina SMTP_HOST en .env (ver .env.example)}
+      Smtp__Puerto: ${SMTP_PUERTO:-587}
+      Smtp__Seguridad: ${SMTP_SEGURIDAD:-StartTls}
+      Smtp__Usuario: ${SMTP_USUARIO:-}
+      Smtp__Clave: ${SMTP_CLAVE:-}
+      Smtp__Remitente: ${SMTP_REMITENTE:?Defina SMTP_REMITENTE en .env (ver .env.example)}
     ports:
       - "8084:8080"
     volumes:

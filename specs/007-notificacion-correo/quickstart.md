@@ -33,3 +33,11 @@ Verificación manual (constitución §11). Contrato en `contracts/consumo-notifi
 ## Cierre
 
 Eliminar la base temporal y el servidor SMTP de pruebas; purgar la cola; arranque normal y todo `healthy`. Registrar en "Resultados" lo ejecutado y lo no ejecutado.
+
+## Resultados (implementación, 2026-11-03)
+
+- **Implementado**: paquetes (MailKit 4.18.2, RabbitMQ.Client 7.2.2, Polly.Core 8.9.0, Logging.Abstractions 10.0.14, `FrameworkReference`), `CargaArchivo` (`Id`, `Estado`), pipelines `smtp` y `sql` (reintento → circuito propio → tiempo de espera; sin reintentar circuito abierto), procedimiento con `@EstadoEsperado = 'Finalizado'`, consulta de estado, `ErrorNotificacion` sin reintentos, envío con MailKit (texto plano, un destinatario), consumidor con confirmación manual y espera tras fallo, Compose y `.env.example`. `dotnet build ms-notificaciones/src/Acity.Notificaciones.slnx`: 0 advertencias, 0 errores.
+- **Comprobado**: `docker compose config -q` correcto; ms-notificaciones arranca `healthy` y registra "Consumiendo la cola notificaciones".
+- **Entorno**: se añadieron a `.env` (no versionado) `SMTP_HOST=smtp-pruebas`, `SMTP_PUERTO=1025`, `SMTP_SEGURIDAD=None`, `SMTP_REMITENTE=notificaciones@carga-masiva.local` para un servidor SMTP de pruebas local; sustituirlos por el servidor real cuando corresponda.
+- **T006 sustituida**: el mapeo se tomó de ms-control (F004, 0 diferencias con el catálogo) en lugar de un scaffold nuevo.
+- **No ejecutado (pendiente del usuario)**: escenarios 1 a 10 (envío real a un SMTP de pruebas, reentregas, fallos de envío, Notificado no guardado, logs). Ningún resultado de esos escenarios se declara.
