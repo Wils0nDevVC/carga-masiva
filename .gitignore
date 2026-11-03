@@ -7,3 +7,7 @@ obj/
 *.suo
 logs/
 *.log
+
+# Frontend (Feature 011)
+cargamasiva_front/node_modules/
+cargamasiva_front/dist/

@@ -39,7 +39,7 @@
 | Compila sin errores | US1-1 | FR-004 | SC-001 | — |
 | Layout y 4 secciones provisionales y página "no encontrada" | US1-2, US1-3 | FR-006 | SC-001 | — |
 | URL del Gateway configurable sin cambiar código (es la configuración del reenvío) | US1-5 | FR-003, FR-005a | — | Q2 |
-| En Compose (`frontend/`), mismo origen y recarga de rutas internas | US1-4 | FR-005, FR-005a | SC-006 | Q2, Q3 |
+| En Compose (`cargamasiva_front/`), mismo origen y recarga de rutas internas | US1-4 | FR-005, FR-005a | SC-006 | Q2, Q3 |
 
 **Sesión**
 
@@ -65,5 +65,5 @@
 
 ## Notes
 
-- Constitución enmendada a 3.7.0 (React incluido, stack y organización) y a 3.8.0 (Q1–Q3: `sessionStorage`, mismo origen y `frontend/` en §2), ambas con autorización expresa del usuario. §9 no cambia (Gateway sin CORS).
+- Constitución enmendada a 3.7.0 (React incluido, stack y organización) y a 3.8.0 (Q1–Q3: `sessionStorage`, mismo origen y `cargamasiva_front/` en §2), ambas con autorización expresa del usuario. §9 no cambia (Gateway sin CORS).
 - El contrato de refresh de F008 se respeta: el refresh token va en el cuerpo JSON y la respuesta trae un par nuevo. No se inventan cookies.

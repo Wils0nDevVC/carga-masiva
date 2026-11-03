@@ -2,7 +2,7 @@
 
 Sin persistencia propia, salvo la sesión en `sessionStorage`. Los `models` son **contratos TypeScript de la API** [Spec FR-002]; solo se crean los que esta feature usa.
 
-| Modelo (`frontend/src/models/`) | Forma | Fuente |
+| Modelo (`cargamasiva_front/src/models/`) | Forma | Fuente |
 |---|---|---|
 | `Response<T>` | `{ data: T \| null; isSuccess: boolean; message: string \| null; code: number; errors: string[] \| null }` | Constitución §5 |
 | `TokensDto` | `{ accessToken: string; expiraEn: string; refreshToken: string; refreshExpiraEn: string }` (fechas ISO UTC) | F008 `contracts/auth-api.md` |

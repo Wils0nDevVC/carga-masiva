@@ -15,7 +15,7 @@
 
 No implementa las pantallas funcionales. Esta etapa genera solo la especificación y la enmienda autorizada de la constitución.
 
-**Procedencia**: `[README §n]` = `referencias/README.md`; `[Constitución §n]` = `.specify/memory/constitution.md` v3.8.0; `[F008]`, `[F009]`, `[F010]` = features de Autenticación, Gateway y consultas; `[Decisión]` = decisión explícita del usuario (incluye el prompt de esta feature); `[Observado]` = comprobado leyendo el repositorio. **Pendiente** = no decidido; no es requisito.
+**Procedencia**: `[README §n]` = `referencias/README.md`; `[Constitución §n]` = `.specify/memory/constitution.md` v3.8.1; `[F008]`, `[F009]`, `[F010]` = features de Autenticación, Gateway y consultas; `[Decisión]` = decisión explícita del usuario (incluye el prompt de esta feature); `[Observado]` = comprobado leyendo el repositorio. **Pendiente** = no decidido; no es requisito.
 
 ## Contexto
 
@@ -27,7 +27,7 @@ No implementa las pantallas funcionales. Esta etapa genera solo la especificaci�
 | Organización | — | pages, components, models (contratos TypeScript de la API, no copias de entidades de la base), api, context, hooks (por funcionalidad cuando coordinen estado, consultas o efectos; no uno por endpoint) y routes [Decisión] | — |
 | Origen de los datos | El cliente envía todo al Gateway [README §3] | Solo el Gateway, desde el mismo origen: el cliente reenvía `/auth` y `/cargas` al Gateway (Vite en desarrollo) [Constitución §11] [F009] [Decisión Q2] | — |
 | Sesión | El JWT se usa en las solicitudes posteriores [README §3 paso 0] | Contrato de F008: login y refresh con rotación; el refresh token viaja en el cuerpo JSON de `POST /auth/refresh` y la respuesta trae un par nuevo [Observado: `specs/008-autenticacion-jwt/contracts/auth-api.md`]. Tokens en `sessionStorage` [Decisión Q1] | — |
-| Despliegue | Dockerfile y Compose valorados [README §4] | Dockerfile propio y servicio en Compose, en `frontend/` [Constitución §2, §11] [Decisión Q3] | — |
+| Despliegue | Dockerfile y Compose valorados [README §4] | Dockerfile propio y servicio en Compose, en `cargamasiva_front/` [Constitución §2, §11] [Decisión Q3] | — |
 | Pruebas | — | Sin pruebas automatizadas; verificación manual [Constitución §11] | — |
 
 **Contratos que se consumen** (sin cambios) [Observado]:
@@ -123,7 +123,7 @@ Toda llamada al Gateway pasa por una instancia común. Esa instancia interpreta 
 - **FR-002**: El código MUST organizarse en pages, components, models, api, context, hooks y routes. Los models son contratos TypeScript de la API (`Response<T>` y los DTO de F008/F010), no entidades de la base. No se crean carpetas, hooks ni archivos vacíos, ni respuestas simuladas. [Decisión]
 - **FR-003**: La URL del Gateway MUST ser configurable sin cambiar código. El cliente MUST consumir solo el Gateway. [Constitución §11]
 - **FR-004**: El cliente MUST compilar para producción sin errores y ejecutarse en desarrollo. [Decisión]
-- **FR-005**: El cliente MUST integrarse en el Compose de la raíz con su propio Dockerfile, conforme a §11. Los detalles técnicos (imagen, puerto, servidor de archivos estáticos) se fijan en el plan. El cliente vive en `frontend/` (Q3). [Constitución §2, §11] [Decisión]
+- **FR-005**: El cliente MUST integrarse en el Compose de la raíz con su propio Dockerfile, conforme a §11. Los detalles técnicos (imagen, puerto, servidor de archivos estáticos) se fijan en el plan. El cliente vive en `cargamasiva_front/` (Q3). [Constitución §2, §11] [Decisión]
 - **FR-005a**: El navegador MUST acceder al Gateway desde el **mismo origen** del cliente:
   - el servicio del cliente reenvía `/auth` y `/cargas` al Gateway, y en desarrollo el servidor de Vite hace lo equivalente;
   - se conservan rutas, métodos, cabeceras y contratos;
@@ -187,7 +187,7 @@ Toda llamada al Gateway pasa por una instancia común. Esa instancia interpreta 
 |---|---|---|---|
 | Q1 | Almacenamiento de los tokens | **`sessionStorage`**, aceptando su exposición ante XSS; sin otros mecanismos de almacenamiento | FR-009, US2-4, Edge Cases |
 | Q2 | Acceso del navegador al Gateway | **Mismo origen**: el cliente reenvía `/auth` y `/cargas` al Gateway (Vite lo equivalente en desarrollo); se conservan rutas, métodos y contratos; el Gateway no cambia | FR-003, FR-005a, US1-4/5 |
-| Q3 | Directorio contenedor | **`frontend/`** en la raíz (constitución §2 actualizada) | FR-005 |
+| Q3 | Directorio contenedor | **`cargamasiva_front/`** en la raíz (constitución §2 actualizada) | FR-005 |
 
 ## Asuntos pendientes (no son requisitos aprobados)
 

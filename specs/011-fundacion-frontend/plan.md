@@ -4,11 +4,11 @@
 
 **Input**: `specs/011-fundacion-frontend/spec.md`
 
-**Procedencia**: `Dec` = decisión del usuario o constitución v3.8.0; `Spec`; `F005/F008/F009/F010`; `Plan` = decisión técnica (detalle en `research.md`); `Verif` = comprobado en esta etapa.
+**Procedencia**: `Dec` = decisión del usuario o constitución v3.8.1; `Spec`; `F005/F008/F009/F010`; `Plan` = decisión técnica (detalle en `research.md`); `Verif` = comprobado en esta etapa.
 
 ## Summary
 
-SPA en `frontend/` con React 19, TypeScript 7, Vite 8, React Router 8, Axios 1.20 y Tailwind CSS 4.
+SPA en `cargamasiva_front/` con React 19, TypeScript 7, Vite 8, React Router 8, Axios 1.20 y Tailwind CSS 4.
 
 - **Páginas**: provisionales en `/login`, `/subir`, `/historial` y `/historial/:idCarga`, con un layout común y una página "no encontrada". Las rutas protegidas exigen sesión.
 - **Sesión**: `AuthContext` y `useAuth`, con los tokens de la 008 en `sessionStorage`.
@@ -34,7 +34,7 @@ SPA en `frontend/` con React 19, TypeScript 7, Vite 8, React Router 8, Axios 1.2
 
 **Target Platform**: navegadores modernos; contenedor `nginx:1.30.6-alpine` en Compose.
 
-**Project Type**: aplicación web (frontend). Toca `frontend/` (nuevo) y `compose.yaml` (servicio `frontend`). El backend, los contratos y `.env` no cambian.
+**Project Type**: aplicación web (frontend). Toca `cargamasiva_front/` (nuevo) y `compose.yaml` (servicio `frontend`). El backend, los contratos y `.env` no cambian.
 
 **Constraints**:
 - Sin Redux, Zustand, React Query, Next.js, bibliotecas de componentes, ESLint, Prettier, pruebas, repositorios ni clases base.
@@ -43,12 +43,12 @@ SPA en `frontend/` con React 19, TypeScript 7, Vite 8, React Router 8, Axios 1.2
 
 ## Constitution Check
 
-Constitución v3.8.0.
+Constitución v3.8.1.
 
 | Principio | Verificación | Resultado |
 |---|---|---|
 | §1 Alcance | Solo la fundación de la spec; sin formularios, tablas, subida ni *polling*. La referencia GitHub no aplica (es backend) | Pasa |
-| §2 Organización | `frontend/` en la raíz (3.8.0) | Pasa |
+| §2 Organización | `cargamasiva_front/` en la raíz (3.8.0) | Pasa |
 | §5 Contrato | `Response<T>` y `ApiError` derivado sin campos nuevos | Pasa |
 | §9 Gateway | Solo se consume el Gateway; sin CORS; mismo origen por reenvío | Pasa |
 | §10 Logs | Sin tokens ni contraseñas en la consola | Pasa |
@@ -68,7 +68,7 @@ specs/011-fundacion-frontend/
 
 compose.yaml                         # + servicio frontend (build ./frontend, GATEWAY_URL, 3000:80, depends_on api-gateway healthy)
 
-frontend/
+cargamasiva_front/
 ├── Dockerfile                       # node:24.22.0-alpine (npm ci, build) → nginx:1.30.6-alpine
 ├── nginx/default.conf.template      # SPA (try_files) + proxy /auth/ y /cargas → ${GATEWAY_URL}; client_max_body_size 12m
 ├── .dockerignore                    # node_modules, dist
@@ -91,7 +91,7 @@ frontend/
     └── pages/{LoginPage, SubirPage, HistorialPage, DetallePage, NoEncontradaPage}.tsx
 ```
 
-El `.gitignore` de la raíz no ignora `node_modules/` ni `dist/` [Verif]; en Setup se añaden `frontend/node_modules/` y `frontend/dist/`.
+El `.gitignore` de la raíz no ignora `node_modules/` ni `dist/` [Verif]; en Setup se añaden `cargamasiva_front/node_modules/` y `cargamasiva_front/dist/`.
 
 ## Complexity Tracking
 

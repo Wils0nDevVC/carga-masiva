@@ -1,6 +1,6 @@
 # Research: Fundación del frontend React
 
-**Procedencia**: `Dec` = decisión del usuario o constitución v3.8.0; `Spec` = spec 011; `F005/F008/F009/F010` = features anteriores; `Plan` = decisión técnica de este plan (alternativa más sencilla); `Verif` = comprobado en esta etapa; `Sin verif` = se comprueba en la implementación.
+**Procedencia**: `Dec` = decisión del usuario o constitución v3.8.1; `Spec` = spec 011; `F005/F008/F009/F010` = features anteriores; `Plan` = decisión técnica de este plan (alternativa más sencilla); `Verif` = comprobado en esta etapa; `Sin verif` = se comprueba en la implementación.
 
 ## D-01 Versiones (todas publicadas hace más de dos semanas; npm registry, Docker Hub y nginx.org consultados el 2026-11-03) [Verif]
 
@@ -34,7 +34,7 @@
 
 ## D-03 Servir y reenviar en Compose [Dec Q2, Q3] [Spec FR-005, FR-005a]
 
-- `frontend/Dockerfile` en dos etapas: `npm ci` y `npm run build` en Node, y después `nginx` con `dist/` y una plantilla de configuración.
+- `cargamasiva_front/Dockerfile` en dos etapas: `npm ci` y `npm run build` en Node, y después `nginx` con `dist/` y una plantilla de configuración.
 - **URL del Gateway**: la imagen oficial de nginx procesa `/etc/nginx/templates/*.template` con `envsubst` al arrancar. `default.conf.template` usa `${GATEWAY_URL}` en los `proxy_pass`. La URL del Gateway es, por tanto, la variable de entorno `GATEWAY_URL` del contenedor, sin recompilar (FR-003).
 - **Reenvío sin cambios**: rutas, métodos, cuerpos y cabeceras, incluida `Authorization` (comportamiento por defecto de `proxy_pass`).
 - **`client_max_body_size 12m`**: el valor por defecto de nginx (1 MiB) rompería la subida de la futura pantalla. 12 MiB cubre el límite de Control (10 MiB más 1 MiB de margen multipart, F005), sin imponer un límite menor. [F005]

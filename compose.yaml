@@ -151,6 +151,25 @@ services:
     healthcheck: *app-healthcheck
     restart: "no"
 
+  frontend:
+    build:
+      context: ./cargamasiva_front
+    image: carga-masiva-frontend:local
+    depends_on:
+      api-gateway:
+        condition: service_healthy
+    environment:
+      # Destino del reenvío de /auth y /cargas (mismo origen; Feature 011 Q2).
+      GATEWAY_URL: http://api-gateway:8080
+    ports:
+      - "3000:80"
+    healthcheck:
+      test: ["CMD", "wget", "-q", "-O", "/dev/null", "http://127.0.0.1/"]
+      interval: 5s
+      timeout: 5s
+      retries: 30
+    restart: "no"
+
   ms-carga-masiva:
     build:
       context: ./ms-carga-masiva

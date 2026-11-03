@@ -1,0 +1,27 @@
+# Cliente web (Feature 011): sirve la SPA y reenvía /auth y /cargas al Gateway desde el mismo origen (Q2).
+# ${GATEWAY_URL} lo sustituye la imagen oficial de nginx al arrancar (envsubst); no requiere recompilar.
+server {
+    listen 80;
+    server_name _;
+    root /usr/share/nginx/html;
+
+    # Mayor que el límite de Control (10 MiB + 1 MiB de margen multipart); el 413 lo decide Control.
+    client_max_body_size 12m;
+
+    location /auth/ {
+        proxy_pass ${GATEWAY_URL};
+    }
+
+    location = /cargas {
+        proxy_pass ${GATEWAY_URL};
+    }
+
+    location /cargas/ {
+        proxy_pass ${GATEWAY_URL};
+    }
+
+    # Rutas internas de la SPA (recarga en /historial/1, etc.).
+    location / {
+        try_files $uri $uri/ /index.html;
+    }
+}

@@ -1,6 +1,12 @@
 <!--
 Sync Impact Report
-- Versión: 3.7.0 → 3.8.0 (MINOR: decisiones Q1–Q3 de la Feature 011 autorizadas por el usuario,
+- Versión: 3.8.0 → 3.8.1 (PATCH: el usuario renombró el directorio contenedor del cliente web de
+  `frontend/` a `cargamasiva_front/`, 2026-11-03, y autorizó alinear la constitución y los documentos.)
+  Principios modificados: §2 (nombre del directorio; la decisión Q3 de la Feature 011 se conserva en
+  lo demás). Sin cambios de reglas. Documentos afectados: `specs/011-fundacion-frontend/` (rutas del
+  directorio), `.gitignore` y `compose.yaml` (contexto de construcción). El servicio de Compose
+  sigue llamándose `frontend`. Resto sin cambios; la fecha de ratificación sigue pendiente.
+- Historial 3.8.0 (referencia): Versión 3.7.0 → 3.8.0 (MINOR: decisiones Q1–Q3 de la Feature 011 autorizadas por el usuario,
   2026-11-03.) Principios modificados: §2 (nuevo directorio contenedor `frontend/` en la raíz para el
   cliente web), §11 (tokens de sesión en `sessionStorage`, aceptando su exposición ante XSS, sin otros
   mecanismos de almacenamiento; acceso al Gateway desde el mismo origen: el cliente reenvía `/auth` y
@@ -140,8 +146,8 @@ Sync Impact Report
 - Directorios contenedores en la raíz: `api-gateway/` (API Gateway con Ocelot), `database/`
   (scripts SQL versionados y runner de evolución del esquema; componente activo), `ms-autenticacion/` (autenticación y emisión de JWT),
   `ms-control/` (recepción de archivos y seguimiento de cargas), `ms-carga-masiva/`
-  (procesamiento masivo del Excel), `ms-notificaciones/` (envío de correos) y `frontend/` (cliente
-  web React; decisión del usuario, Feature 011). [Decisión]
+  (procesamiento masivo del Excel), `ms-notificaciones/` (envío de correos) y `cargamasiva_front/`
+  (cliente web React; decisión del usuario, Feature 011; renombrado desde `frontend/`). [Decisión]
 - Estos nombres identifican los directorios contenedores; los proyectos internos mantienen los
   nombres del principio 4. Las capas se crean solo cuando un plan lo requiera. [Decisión]
 - La base de datos participa en el mismo SDD y se modela inicialmente de forma integral.
@@ -455,4 +461,4 @@ eliminaciones incompatibles; MINOR por principios o secciones nuevas; PATCH por 
 Toda especificación, plan y tarea MUST verificar cumplimiento de esta constitución, indicar la
 procedencia de cada obligación y justificar cualquier complejidad añadida.
 
-**Version**: 3.8.0 | **Ratified**: TODO(RATIFICATION_DATE): pendiente de aprobación del usuario | **Last Amended**: 2026-11-03
+**Version**: 3.8.1 | **Ratified**: TODO(RATIFICATION_DATE): pendiente de aprobación del usuario | **Last Amended**: 2026-11-03
