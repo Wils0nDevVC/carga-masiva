@@ -21,7 +21,7 @@ public sealed class SeaweedFsAlmacenamiento(
     public async Task<byte[]> DescargarAsync(string rutaArchivo, CancellationToken cancellationToken)
     {
         var origen = ConstruirUri(rutaArchivo);
-        return await pipeline.ExecuteAsync(async ct =>
+        return await pipeline.EjecutarAsync(PipelinesResiliencia.Descarga, async ct =>
         {
             using var respuesta = await httpClient.GetAsync(origen, ct);
             if (respuesta.StatusCode == HttpStatusCode.NotFound)

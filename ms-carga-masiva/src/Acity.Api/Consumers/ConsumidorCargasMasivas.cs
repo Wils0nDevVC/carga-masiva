@@ -21,6 +21,7 @@ public sealed class ConsumidorCargasMasivas(
 {
     private static readonly TimeSpan EsperaCerrojo = TimeSpan.FromSeconds(15);
     private static readonly TimeSpan EsperaTrasFallo = TimeSpan.FromSeconds(10);
+    private static readonly TimeSpan AperturaCircuito = TimeSpan.FromSeconds(30);
     private static readonly JsonSerializerOptions Json = new(JsonSerializerDefaults.Web);
 
     protected override async Task ExecuteAsync(CancellationToken stoppingToken)
@@ -51,11 +52,16 @@ public sealed class ConsumidorCargasMasivas(
             }
             catch (Exception ex)
             {
-                logger.LogError(ex, "El consumidor se detuvo; se reintenta en {Espera}", EsperaTrasFallo);
+                // Circuito abierto: esperar a que pueda cerrarse (RetryAfter, o la apertura de 30 s; nunca menos de la
+                // espera general) para no crear bucles inmediatos de reentrega (decisión H3).
+                var espera = ex is DependenciaNoDisponibleException circuito
+                    ? Max(circuito.RetryAfter ?? AperturaCircuito, EsperaTrasFallo)
+                    : EsperaTrasFallo;
+                logger.LogError(ex, "El consumidor se detuvo; se reintenta en {Espera}", espera);
                 await cerrojo.LiberarAsync();
                 try
                 {
-                    await Task.Delay(EsperaTrasFallo, stoppingToken);
+                    await Task.Delay(espera, stoppingToken);
                 }
                 catch (OperationCanceledException)
                 {
@@ -91,6 +97,8 @@ public sealed class ConsumidorCargasMasivas(
             .Send(new ProcesarCargaCommand(mensaje.IdCarga, mensaje.RutaArchivo), CancellationToken.None);
         logger.LogInformation("Mensaje de la carga {IdCarga}: {Resultado}", mensaje.IdCarga, resultado);
     }
+
+    private static TimeSpan Max(TimeSpan a, TimeSpan b) => a > b ? a : b;
 
     /// <summary>Contrato de entrada (F005): { idCarga, rutaArchivo, usuario }.</summary>
     private sealed record MensajeCargaMasiva(long IdCarga, string? RutaArchivo, string? Usuario);

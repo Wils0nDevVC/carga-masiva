@@ -16,6 +16,12 @@ public interface IRepositorioProcesamiento
     /// <summary>Incrementa <c>IntentosProceso</c> con una sola sentencia y devuelve el nuevo valor.</summary>
     Task<int> IncrementarIntentosAsync(long cargaId, CancellationToken cancellationToken);
 
+    /// <summary>
+    /// Devuelve el intento contado en una ejecución que terminó por circuito abierto (decisión H3; research D-08b): una
+    /// sola sentencia, sin pipeline (el circuito puede estar abierto) y sin bajar de 0.
+    /// </summary>
+    Task DescontarIntentoAsync(long cargaId, CancellationToken cancellationToken);
+
     /// <summary>Periodos de la carga: Periodo → (Id, Resultado).</summary>
     Task<IReadOnlyDictionary<string, (long Id, string Resultado)>> ObtenerPeriodosAsync(long cargaId, CancellationToken cancellationToken);
 

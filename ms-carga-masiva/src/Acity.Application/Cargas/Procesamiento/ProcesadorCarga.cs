@@ -35,31 +35,55 @@ public sealed class ProcesadorCarga(
     public async Task ProcesarAsync(long cargaId, string rutaArchivo)
     {
         var estado = new EstadoEjecucion();
-        string? motivoFallo;
         try
         {
-            motivoFallo = await EjecutarAsync(cargaId, rutaArchivo, estado);
+            string? motivoFallo;
+            try
+            {
+                motivoFallo = await EjecutarAsync(cargaId, rutaArchivo, estado);
+            }
+            catch (Exception ex) when (ex is CerrojoPerdidoException or DependenciaNoDisponibleException)
+            {
+                throw;
+            }
+            catch (Exception ex)
+            {
+                // Agotamiento de reintentos de una operación ejecutada o error no reintentable: fallo terminal real.
+                logger.LogError(ex, "Fallo técnico en la carga {IdCarga} durante {Operacion}", cargaId, estado.Operacion);
+                motivoFallo = $"Fallo técnico durante {estado.Operacion}: {ex.GetType().Name}.";
+            }
+
+            if (motivoFallo is not null)
+            {
+                // Una sola vez; si este registro falla, la excepción sube y el mensaje no se confirma.
+                await RegistrarFalloAsync(cargaId, motivoFallo, estado);
+                return;
+            }
+
+            // Cargado → Finalizado y notificación fuera del tratamiento de fallo terminal: si falla un cambio de estado,
+            // la carga conserva su estado y la recuperación lo completa (constitución §8); la excepción sube sin confirmar.
+            await FinalizarYNotificarAsync(cargaId, desdeEnProceso: true);
         }
-        catch (CerrojoPerdidoException)
+        catch (DependenciaNoDisponibleException ex)
         {
+            // Rechazo por circuito abierto (la operación no se ejecutó): no es fallo terminal, no marca Fallido ni
+            // registra ErrorTecnico y no consume el intento (decisión H3; research D-08b). El mensaje no se confirma.
+            logger.LogWarning("Carga {IdCarga}: {Operacion} no disponible (circuito abierto) durante {Fase}; se reintentará tras la espera",
+                cargaId, ex.Operacion, estado.Operacion);
+            if (estado.IntentoContado)
+            {
+                try
+                {
+                    await repositorio.DescontarIntentoAsync(cargaId, SinCancelacion);
+                }
+                catch (Exception exDescuento)
+                {
+                    logger.LogError(exDescuento, "No se pudo devolver el intento de la carga {IdCarga}; queda contado", cargaId);
+                }
+            }
+
             throw;
         }
-        catch (Exception ex)
-        {
-            logger.LogError(ex, "Fallo técnico en la carga {IdCarga} durante {Operacion}", cargaId, estado.Operacion);
-            motivoFallo = $"Fallo técnico durante {estado.Operacion}: {ex.GetType().Name}.";
-        }
-
-        if (motivoFallo is not null)
-        {
-            // Una sola vez; si este registro falla, la excepción sube y el mensaje no se confirma.
-            await RegistrarFalloAsync(cargaId, motivoFallo, estado);
-            return;
-        }
-
-        // Cargado → Finalizado y notificación fuera del tratamiento de fallo terminal: si falla un cambio de estado,
-        // la carga conserva su estado y la recuperación lo completa (constitución §8); la excepción sube sin confirmar.
-        await FinalizarYNotificarAsync(cargaId, desdeEnProceso: true);
     }
 
     /// <summary>Fases que pueden terminar en fallo técnico terminal. Devuelve el motivo del fallo o <c>null</c>.</summary>
@@ -67,6 +91,7 @@ public sealed class ProcesadorCarga(
     {
         estado.Operacion = "registro del intento";
         var intento = await repositorio.IncrementarIntentosAsync(cargaId, SinCancelacion);
+        estado.IntentoContado = true;
         if (intento > opciones.MaxIntentos)
         {
             return $"Intentos de procesamiento agotados ({intento - 1} de {opciones.MaxIntentos}).";
@@ -140,6 +165,9 @@ public sealed class ProcesadorCarga(
     private sealed class EstadoEjecucion
     {
         public string Operacion { get; set; } = "procesamiento";
+
+        /// <summary>Esta ejecución ya incrementó <c>IntentosProceso</c> (se devuelve si termina por circuito abierto).</summary>
+        public bool IntentoContado { get; set; }
 
         public string? PeriodoEnCurso { get; set; }
 

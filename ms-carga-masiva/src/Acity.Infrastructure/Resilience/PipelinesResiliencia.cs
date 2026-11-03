@@ -27,6 +27,8 @@ public static class PipelinesResiliencia
 
     public static bool EsSqlTransitorio(Exception ex) => ex switch
     {
+        // Un circuito abierto nunca se reintenta, aunque su excepción interna sea la transitoria que lo abrió.
+        BrokenCircuitException => false,
         SqlException sql => ErroresSqlTransitorios.Contains(sql.Number),
         TimeoutException => true,
         _ when ex.InnerException is not null => EsSqlTransitorio(ex.InnerException),
@@ -40,20 +42,17 @@ public static class PipelinesResiliencia
             .Handle<HttpRequestException>(ex => ex.StatusCode is null
                 or HttpStatusCode.RequestTimeout or HttpStatusCode.TooManyRequests
                 || (int)ex.StatusCode >= 500)
-            .Handle<TimeoutRejectedException>(),
-        circuito: true);
+            .Handle<TimeoutRejectedException>());
 
     /// <summary>Procedimientos (idempotentes), incremento de intentos y consultas.</summary>
     public static ResiliencePipeline CrearSql(ILogger logger) => Crear(
         logger, Sql, 3, TimeSpan.FromSeconds(30),
-        new PredicateBuilder().Handle<Exception>(EsSqlTransitorio).Handle<TimeoutRejectedException>(),
-        circuito: true);
+        new PredicateBuilder().Handle<Exception>(EsSqlTransitorio).Handle<TimeoutRejectedException>());
 
     /// <summary>Transacción de un periodo: cada intento comprueba antes si el periodo ya quedó Completado.</summary>
     public static ResiliencePipeline CrearTransaccionGrupo(ILogger logger) => Crear(
         logger, TransaccionGrupo, 3, TimeSpan.FromSeconds(120),
-        new PredicateBuilder().Handle<Exception>(EsSqlTransitorio).Handle<TimeoutRejectedException>(),
-        circuito: false);
+        new PredicateBuilder().Handle<Exception>(EsSqlTransitorio).Handle<TimeoutRejectedException>());
 
     /// <summary>Publicación con confirmación; un reintento tras una confirmación perdida puede duplicar el mensaje.</summary>
     public static ResiliencePipeline CrearNotificacion(ILogger logger) => Crear(
@@ -63,13 +62,15 @@ public static class PipelinesResiliencia
             .Handle<AlreadyClosedException>()
             .Handle<OperationInterruptedException>()
             .Handle<PublishException>(ex => !ex.IsReturn)
-            .Handle<TimeoutRejectedException>(),
-        circuito: true);
+            .Handle<TimeoutRejectedException>());
 
     private static ResiliencePipeline Crear(
-        ILogger logger, string operacion, int reintentos, TimeSpan timeout, PredicateBuilder<object> reintentables, bool circuito)
+        ILogger logger, string operacion, int reintentos, TimeSpan timeout, PredicateBuilder<object> reintentables)
     {
-        var builder = new ResiliencePipelineBuilder()
+        // Orden: reintento (exterior) → circuit breaker → tiempo de espera por intento (interior). Ambos predicados
+        // incluyen TimeoutRejectedException porque el tiempo de espera es la estrategia interior. Cada pipeline es un
+        // singleton: su circuito conserva el estado entre ejecuciones y cargas (no lo comparte con otro pipeline).
+        return new ResiliencePipelineBuilder()
             .AddRetry(new RetryStrategyOptions
             {
                 MaxRetryAttempts = reintentos,
@@ -83,11 +84,8 @@ public static class PipelinesResiliencia
                         args.AttemptNumber + 1, operacion, args.Outcome.Exception?.GetType().Name);
                     return ValueTask.CompletedTask;
                 }
-            });
-
-        if (circuito)
-        {
-            builder.AddCircuitBreaker(new CircuitBreakerStrategyOptions
+            })
+            .AddCircuitBreaker(new CircuitBreakerStrategyOptions
             {
                 FailureRatio = 0.5,
                 MinimumThroughput = 5,
@@ -98,10 +96,31 @@ public static class PipelinesResiliencia
                 {
                     logger.LogError("Circuito de {Operacion} abierto durante {Duracion}", operacion, args.BreakDuration);
                     return ValueTask.CompletedTask;
+                },
+                OnClosed = _ =>
+                {
+                    logger.LogInformation("Circuito de {Operacion} cerrado", operacion);
+                    return ValueTask.CompletedTask;
                 }
-            });
-        }
+            })
+            .AddTimeout(timeout)
+            .Build();
+    }
 
-        return builder.AddTimeout(timeout).Build();
+    /// <summary>
+    /// Ejecuta en el pipeline y traduce el rechazo por circuito abierto (la operación no se ejecutó) a
+    /// <see cref="DependenciaNoDisponibleException"/>, distinto del agotamiento de reintentos (decisión H3).
+    /// </summary>
+    public static async ValueTask<T> EjecutarAsync<T>(
+        this ResiliencePipeline pipeline, string operacion, Func<CancellationToken, ValueTask<T>> accion, CancellationToken cancellationToken)
+    {
+        try
+        {
+            return await pipeline.ExecuteAsync(accion, cancellationToken);
+        }
+        catch (BrokenCircuitException ex)
+        {
+            throw new DependenciaNoDisponibleException(operacion, ex.RetryAfter, ex);
+        }
     }
 }

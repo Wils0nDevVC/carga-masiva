@@ -24,18 +24,18 @@ public sealed class RepositorioProcesamiento(
     private const int LoteCodigos = 1000;
 
     public async Task<CargaArchivo?> ObtenerCargaAsync(long cargaId, CancellationToken cancellationToken)
-        => await sql.ExecuteAsync(async ct =>
+        => await sql.EjecutarAsync(PipelinesResiliencia.Sql, async ct =>
             await context.Set<CargaArchivo>().AsNoTracking().FirstOrDefaultAsync(c => c.Id == cargaId, ct), cancellationToken);
 
     public async Task<IReadOnlyList<CargaArchivo>> ObtenerCargasARecuperarAsync(CancellationToken cancellationToken)
-        => await sql.ExecuteAsync(async ct =>
+        => await sql.EjecutarAsync(PipelinesResiliencia.Sql, async ct =>
             (IReadOnlyList<CargaArchivo>)await context.Set<CargaArchivo>().AsNoTracking()
                 .Where(c => c.Estado == "En proceso" || c.Estado == "Cargado")
                 .OrderBy(c => c.Id)
                 .ToListAsync(ct), cancellationToken);
 
     public async Task<int> IncrementarIntentosAsync(long cargaId, CancellationToken cancellationToken)
-        => await sql.ExecuteAsync(async ct =>
+        => await sql.EjecutarAsync(PipelinesResiliencia.Sql, async ct =>
         {
             // Una sola sentencia: incrementa y devuelve el valor nuevo.
             var valores = await context.Database
@@ -44,8 +44,13 @@ public sealed class RepositorioProcesamiento(
             return valores.Single();
         }, cancellationToken);
 
+    public async Task DescontarIntentoAsync(long cargaId, CancellationToken cancellationToken)
+        => await context.Database.ExecuteSqlInterpolatedAsync(
+            $"UPDATE dbo.CargaArchivo SET IntentosProceso = IntentosProceso - 1 WHERE Id = {cargaId} AND IntentosProceso > 0",
+            cancellationToken);
+
     public async Task<IReadOnlyDictionary<string, (long Id, string Resultado)>> ObtenerPeriodosAsync(long cargaId, CancellationToken cancellationToken)
-        => await sql.ExecuteAsync(async ct =>
+        => await sql.EjecutarAsync(PipelinesResiliencia.Sql, async ct =>
         {
             var periodos = await context.Set<CargaPeriodo>().AsNoTracking()
                 .Where(p => p.CargaId == cargaId)
@@ -61,7 +66,7 @@ public sealed class RepositorioProcesamiento(
         {
             // La comparación la hace la base con la collation de la columna (autoridad, F001 R-07). Se devuelven los
             // códigos solicitados que tienen coincidencia, no los almacenados.
-            var existentes = await sql.ExecuteAsync(async ct =>
+            var existentes = await sql.EjecutarAsync(PipelinesResiliencia.Sql, async ct =>
                 await (from p in context.Set<Producto>().AsNoTracking()
                        join cp in context.Set<CargaPeriodo>() on p.CargaPeriodoId equals cp.Id
                        where cp.CargaId != cargaId && lote.Contains(p.CodigoProducto)
@@ -75,7 +80,7 @@ public sealed class RepositorioProcesamiento(
     }
 
     public async Task<bool> ExisteIncidenciaSinPeriodoAsync(long cargaId, string tipo, CancellationToken cancellationToken)
-        => await sql.ExecuteAsync(async ct =>
+        => await sql.EjecutarAsync(PipelinesResiliencia.Sql, async ct =>
             await context.Set<Incidencia>().AsNoTracking()
                 .AnyAsync(i => i.CargaId == cargaId && i.CargaPeriodoId == null && i.Tipo == tipo, ct), cancellationToken);
 
@@ -98,7 +103,7 @@ public sealed class RepositorioProcesamiento(
         IReadOnlyList<Incidencia> incidencias,
         Func<Producto, Incidencia> existentePorColision,
         CancellationToken cancellationToken)
-        => await transaccionGrupo.ExecuteAsync(async ct =>
+        => await transaccionGrupo.EjecutarAsync(PipelinesResiliencia.TransaccionGrupo, async ct =>
         {
             try
             {
@@ -112,7 +117,7 @@ public sealed class RepositorioProcesamiento(
         }, cancellationToken);
 
     public async Task<(string Email, DateTime? FechaFin)> ObtenerDatosNotificacionAsync(long cargaId, CancellationToken cancellationToken)
-        => await sql.ExecuteAsync(async ct =>
+        => await sql.EjecutarAsync(PipelinesResiliencia.Sql, async ct =>
         {
             var datos = await (from c in context.Set<CargaArchivo>().AsNoTracking()
                                join u in context.Set<Usuario>().AsNoTracking() on c.UsuarioId equals u.Id

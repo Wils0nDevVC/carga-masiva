@@ -17,7 +17,7 @@ public sealed class ProcedimientosCarga(
     [FromKeyedServices(PipelinesResiliencia.Sql)] ResiliencePipeline pipeline) : IProcedimientosCarga
 {
     public async Task<string> ReservarPeriodoAsync(long cargaId, string periodo, CancellationToken cancellationToken)
-        => await pipeline.ExecuteAsync(async ct =>
+        => await pipeline.EjecutarAsync(PipelinesResiliencia.Sql, async ct =>
         {
             var resultado = new SqlParameter("@Resultado", SqlDbType.VarChar, 20) { Direction = ParameterDirection.Output };
             await context.Database.ExecuteSqlRawAsync(
@@ -32,7 +32,7 @@ public sealed class ProcedimientosCarga(
         }, cancellationToken);
 
     public async Task<bool> CambiarEstadoAsync(long cargaId, string nuevoEstado, string? periodoFallido, string? estadoEsperado, CancellationToken cancellationToken)
-        => await pipeline.ExecuteAsync(async ct =>
+        => await pipeline.EjecutarAsync(PipelinesResiliencia.Sql, async ct =>
         {
             var cambiado = new SqlParameter("@Cambiado", SqlDbType.Bit) { Direction = ParameterDirection.Output };
             await context.Database.ExecuteSqlRawAsync(
