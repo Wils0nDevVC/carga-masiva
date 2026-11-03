@@ -4,11 +4,11 @@
 
 **Created**: 2026-11-03
 
-**Status**: Draft (v2: Q1 y Q2 resueltas por decisión autorizada del usuario, 2026-11-03)
+**Status**: Draft (v3: Q1 y Q2 resueltas por decisión autorizada del usuario; H1, H2 y H3 de la revisión de cierre resueltos por el usuario, 2026-11-03)
 
 **Input**: Consumir la cola `carga_masiva` con un `BackgroundService` dentro de `Acity.Api` de ms-carga-masiva, recuperar el Excel de SeaweedFS y procesarlo con ClosedXML aplicando las reglas aprobadas de periodos, normalización, duplicados, valores ausentes o inválidos, transacciones e incidencias; gestionar estados, exclusividad del consumidor, reentregas y recuperación; publicar en `notificaciones` al completar. Incluye la comprobación con el consumidor real de la carrera documentada en la feature 005. Esta etapa genera solo la especificación.
 
-**Procedencia**: `[README §n]` = `referencias/README.md`; `[Constitución §n]` = `.specify/memory/constitution.md` v3.2.0; `[F001 …]` = `specs/001-persistencia-integridad-carga/` (spec FR-xxx, research R-xx, data-model, contrato de procedimientos); `[F004]` = entidades por servicio; `[F005 …]` = `specs/005-recepcion-registro-cargas/` (contratos implementados); `[Decisión]` = decisión explícita del usuario (incluye el prompt de esta feature); `[Observado]` = comprobado leyendo el repositorio en esta etapa. **Pendiente** = no decidido; no es requisito. Las reglas de F001 y de la constitución **se aplican sin reinterpretarse**; esta spec las referencia y solo precisa su uso en el consumidor.
+**Procedencia**: `[README §n]` = `referencias/README.md`; `[Constitución §n]` = `.specify/memory/constitution.md` v3.2.1; `[F001 …]` = `specs/001-persistencia-integridad-carga/` (spec FR-xxx, research R-xx, data-model, contrato de procedimientos); `[F004]` = entidades por servicio; `[F005 …]` = `specs/005-recepcion-registro-cargas/` (contratos implementados); `[Decisión]` = decisión explícita del usuario (incluye el prompt de esta feature); `[Observado]` = comprobado leyendo el repositorio en esta etapa. **Pendiente** = no decidido; no es requisito. Las reglas de F001 y de la constitución **se aplican sin reinterpretarse**; esta spec las referencia y solo precisa su uso en el consumidor.
 
 ## Contexto
 
@@ -39,7 +39,7 @@
 | Archivo ilegible | Formato o contenido inválido = incidencia de entrada, sin reintentos técnicos; fallo de descarga o almacenamiento = técnico | [F001 R-03, Edge Cases] |
 | Archivo inválido (precisión de esta feature) | Corrupto, sin hojas o sin los encabezados requeridos → incidencia `ArchivoInvalido` (tipo nuevo por script versionado mínimo), sin productos ni reintentos, recorrido normal En proceso → Cargado → Finalizado y notificación. Archivo inexistente en SeaweedFS = fallo técnico de recuperación del archivo (`ErrorTecnico`, Fallido) | [Decisión Q1, autorizada por el usuario 2026-11-03] [Constitución §7 v3.2.0] |
 | Notificación no confirmada (precisión de esta feature) | Reintentos limitados con confirmación; agotados → Finalizado conservado + `ErrorTecnico` que describe la falta de confirmación; sin recuperación automática | [Decisión Q2, autorizada por el usuario 2026-11-03] [Constitución §8 v3.2.0] |
-| Polly | Reintentos limitados y Circuit Breaker; parámetros fijados en esta feature (plan) sin duplicar efectos de escritura | [Constitución §9] [F001 FR-032] |
+| Polly | Reintentos limitados y Circuit Breaker en cada operación protegida, incluida la transacción de un periodo (circuit breaker propio, decisión H3); parámetros fijados en esta feature (plan) sin duplicar efectos de escritura | [Constitución §9] [F001 FR-032] [Decisión H3] |
 
 ## User Scenarios & Testing *(mandatory)*
 
@@ -143,7 +143,8 @@ Control solo pasa a Fallido una carga que sigue Pendiente (V003); un mensaje tar
 - Archivo corrupto, sin hojas o sin alguno de los cuatro encabezados: archivo inválido → `ArchivoInvalido`, sin productos ni reintentos, Finalizado y notificación (US4-7). [Decisión Q1]
 - Encabezados en otro orden o con espacios: los cuatro campos se identifican por su nombre en la primera fila de la primera hoja (Assumptions). Columnas adicionales se ignoran.
 - Periodo guardado por Excel como fecha o como número: se toma su texto mostrado; si no cumple AAAA-MM, la fila se omite con motivo (no se convierte por suposición).
-- Precio con ruido binario (418.27 almacenado como 418.26999…): se convierte por su representación decimal más corta; solo un valor con más de dos decimales significativos se omite [F001 R-08, propuesta, no decisión aprobada]. **Pendiente de decisión del usuario** (revisión de cierre H1; caso P0047 `75.51000000000001` → 75.51) frente a la constitución §7 "sin redondeo silencioso".
+- Precio en celda numérica con ruido binario (P0047 guardado como `75.51000000000001`, mismo valor numérico que 75.51): se evalúa por su valor, con la representación decimal más corta que lo preserva (75.51), y luego se comprueba exacto en DECIMAL(18,2); 1.005 se omite. [Decisión H1] [Constitución §7 v3.2.1]
+- Precio en celda de texto con coma ("1,5") o con separador de miles: no numérico, se omite con su incidencia. [Decisión H2] [Constitución §7 v3.2.1]
 - Código con espacios internos ("ab c"): se conserva; con solo espacios: ausente.
 - Duplicado cuya fila ganadora pertenece a un periodo que luego falla: `NoProcesado` "ganador no persistido", nunca Existente [F001 FR-049].
 - Mensaje para una carga En proceso o Cargado después de la recuperación: se descarta (la recuperación ya la tomó).
@@ -174,6 +175,7 @@ Control solo pasa a Fallido una carga que sigue Pendiente (V003); un mensaje tar
 **Reglas de procesamiento** (aplican, sin cambios, las fuentes de la tabla "Reglas aprobadas")
 
 - **FR-009**: El sistema MUST normalizar y validar cada fila según [Constitución §7] y [F001 FR-024–028, FR-044, FR-047, R-07, R-08], registrando `FilaOmitida` con su motivo para las omitidas (salvo filas completamente vacías, que se omiten sin incidencia).
+- **FR-009a**: El precio MUST leerse así [Decisión H1/H2] [Constitución §7 v3.2.1]: una celda numérica por su valor numérico (no por su formato visual), convertido a decimal con la representación decimal más corta que preserva ese valor y comprobado después exacto en DECIMAL(18,2), sin redondear ni truncar; una celda de texto solo es numérica con punto como separador decimal y sin separadores de miles. MUST NOT añadirse otras restricciones ni aplicarse redondeos generales.
 - **FR-010**: El sistema MUST reservar cada periodo válido con `usp_ReservarPeriodo` mientras la carga está En proceso, una vez por periodo y fuera de transacciones de la aplicación; los resultados Rechazado y Bloqueado y sus incidencias de grupo los registra el procedimiento. [F001 FR-009–015, contrato `usp_ReservarPeriodo`]
 - **FR-011**: El sistema MUST decidir los productos ganadores sobre todo el archivo antes de persistir, según [F001 R-05]: entre filas válidas de periodos Admitido gana la de menor número de fila por código; los códigos confirmados por **otras** cargas son Existente; los de la propia carga ya confirmados (en recuperación) se tratan igual que en la primera ejecución.
 - **FR-012**: Cada periodo Admitido MUST persistirse en una transacción con sus productos ganadores, sus incidencias de negocio (incluidas las `Existente` de los duplicados que dependen de sus ganadores) y su paso a Completado; los procedimientos MUST NOT invocarse dentro de esa transacción. [F001 FR-016, R-05, R-09, contrato "Regla común"]
@@ -255,7 +257,7 @@ Ningún resultado de esta tabla se declara antes de ejecutarlo.
 
 Ninguno que requiera decisión del usuario. Resueltos por decisión autorizada del usuario (2026-11-03): **Q1** archivo inválido (FR-008, FR-008a, FR-008b) y **Q2** notificación no confirmada (FR-022).
 
-**Hallazgos de la revisión de cierre, pendientes de decisión** (no son requisitos aprobados; detalle en `research.md` "Hallazgos"): H1 criterio de lectura de precios (representación más corta) frente a la precisión exacta; H2 "1,5" tratado como no numérico; H3 la transacción de un periodo sin circuit breaker frente a FR-016.
+**Hallazgos de la revisión de cierre, resueltos por el usuario (2026-11-03)**: H1 y H2 → FR-009a y constitución §7 v3.2.1; H3 → se conserva FR-016 y la transacción de un periodo incorpora un circuit breaker propio (diseño en `research.md` D-12; **implementación y verificación pendientes**: tareas T049 y T050).
 
 **Limitación aceptada** (Q2): si la notificación no se confirma, la carga queda Finalizado con su incidencia y no se notifica después de forma automática; una notificación sin confirmación pudo haber llegado.
 

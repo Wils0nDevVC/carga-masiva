@@ -128,9 +128,6 @@ Los otros servicios, V001–V003, `api-gateway/`, `referencias/` y la constituci
 
 ## Pendientes tras el plan
 
-**Requieren decisión del usuario** (revisión de cierre, `research.md` "Hallazgos"):
-- **H1**: criterio de lectura de precios numéricos (representación decimal más corta) frente a la regla de precisión exacta sin redondeo silencioso; caso P0047 `75.51000000000001` → 75.51. No se da por aprobado.
-- **H2**: precio en texto con coma ("1,5") tratado como no numérico; cambio frente a D-07.
-- **H3**: la transacción de un periodo no tiene circuit breaker, contra spec FR-016.
+**Decisiones del usuario en el cierre (2026-11-03)**: H1 (lectura de celdas numéricas por la representación decimal más corta, con comprobación exacta posterior en DECIMAL(18,2)) y H2 (texto con punto decimal y sin separadores de miles) → constitución §7 v3.2.1 y spec FR-009a; ya implementadas y verificadas (escenarios 2 y 5). H3 → se conserva FR-016 con un circuit breaker propio para la transacción de un periodo (research D-12): **implementación y verificación pendientes** (T049, T050). D1 aceptada como ajuste técnico mínimo; D3 y D4 mantienen las reglas existentes.
 
-**Sin decisión pendiente, pero no verificado**: validación en el equipo de evaluación (motor amd64 emulado en este equipo); "reintento seguido de éxito" de la descarga (escenario 19, parcial); errores SQL transitorios no provocados; duplicado de notificación por reintento tras confirmación perdida no provocado. Dependencia de la feature de Notificaciones: declarar la misma topología de `notificaciones` y descartar mensajes de cargas que no estén Finalizado.
+**No verificado**: validación en el equipo de evaluación (motor amd64 emulado en este equipo); "reintento seguido de éxito" de la descarga (escenario 19, parcial); errores SQL transitorios no provocados; apertura de circuitos; duplicado de notificación por reintento tras confirmación perdida. Dependencia de la feature de Notificaciones: declarar la misma topología de `notificaciones` y descartar mensajes de cargas que no estén Finalizado.

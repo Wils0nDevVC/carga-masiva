@@ -1,6 +1,11 @@
 <!--
 Sync Impact Report
-- Versión: 3.1.0 → 3.2.0 (MINOR: precisiones de la Feature 006, procesamiento en ms-carga-masiva,
+- Versión: 3.2.0 → 3.2.1 (PATCH: aclaración de §7 sobre la lectura del precio, decisiones H1 y H2 del
+  usuario en el cierre de la Feature 006, 2026-11-03: celdas numéricas por su valor con la
+  representación decimal más corta y comprobación exacta en DECIMAL(18,2); celdas de texto con punto
+  decimal y sin separadores de miles. Sustituye la interpretación propuesta en F001 R-08.) Resto sin
+  cambios.
+- Historial 3.2.0 (referencia): Versión 3.1.0 → 3.2.0 (MINOR: precisiones de la Feature 006, procesamiento en ms-carga-masiva,
   autorizadas por el usuario el 2026-11-03.)
 - Principios modificados en 3.2.0: §7 (archivo inválido → incidencia ArchivoInvalido, sin productos
   ni reintentos, recorrido normal hasta Finalizado y notificación; archivo inexistente = fallo
@@ -193,6 +198,12 @@ Sync Impact Report
   representarse exactamente en DECIMAL(18,2), o un texto supera la longitud definida en el
   modelo, la fila se omite y se registra el motivo; nunca se redondea ni se trunca en silencio.
   [Decisión]
+- Lectura del precio [Decisión, Feature 006, 2026-11-03]: una celda numérica se evalúa por su valor
+  numérico leído, no por su formato visual; se convierte a decimal con la representación decimal más
+  corta que preserva ese valor y después se comprueba su representación exacta en DECIMAL(18,2), sin
+  redondear ni truncar para hacerla encajar. Una celda de texto solo es numérica con punto como
+  separador decimal y sin separadores de miles ("1,5" se omite con su incidencia; nunca es 15). Esta
+  precisión no autoriza redondeos generales ni añade otras restricciones.
 - Ante una validación de periodo fallida termina el procesamiento de ese grupo, no el de los
   demás. [README §3] [Decisión]
 - Ante un fallo técnico terminal de un periodo se detiene el procesamiento del archivo y la carga
@@ -346,4 +357,4 @@ eliminaciones incompatibles; MINOR por principios o secciones nuevas; PATCH por 
 Toda especificación, plan y tarea MUST verificar cumplimiento de esta constitución, indicar la
 procedencia de cada obligación y justificar cualquier complejidad añadida.
 
-**Version**: 3.2.0 | **Ratified**: TODO(RATIFICATION_DATE): pendiente de aprobación del usuario | **Last Amended**: 2026-11-03
+**Version**: 3.2.1 | **Ratified**: TODO(RATIFICATION_DATE): pendiente de aprobación del usuario | **Last Amended**: 2026-11-03
