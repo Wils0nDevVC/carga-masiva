@@ -38,7 +38,7 @@
 
 - [x] T014 [US1] Crear `<app>/Notificaciones/Commands/NotificarCarga/NotificarCargaCommand.cs` (`IdCarga`, `Usuario`, `FechaFin`) y `NotificarCargaCommandHandler.cs` (research D-03): leer estado; si no es `Finalizado` → descartar con log; armar asunto `Carga {IdCarga} finalizada` y cuerpo `La carga {IdCarga} finalizó.` + `Fecha de fin (UTC): {FechaFin:yyyy-MM-dd HH:mm:ss}` (sin "sin errores", sin resúmenes); enviar; `CambiarEstadoAsync(IdCarga, "Notificado", "Finalizado")` (`false` → log de advertencia)
 - [x] T015 [US1] Crear `<api>/Consumers/ConsumidorNotificaciones.cs` (`BackgroundService`): deserializar `{ idCarga, usuario, fechaFin }` (web), validar y enviar el comando en un ámbito nuevo; ante excepción, esperar `RetryAfter` (o 30 s; mínimo 10 s) si es `DependenciaNoDisponibleException`, 10 s en otro caso; registrar con `AddHostedService` en `<api>/Program.cs`
-- [ ] T016 [US1] Ejecutar los escenarios 1 y 2 de `quickstart.md` con el servidor SMTP de pruebas; registrar resultados — **Pendiente: se ejecutará con Mailpit tras T027–T029 (decisión del usuario, 2026-11-03)**
+- [ ] T016 [US1] Ejecutar los escenarios 1 y 2 de `quickstart.md` con el servidor SMTP de pruebas; registrar resultados — **Parcial (2026-11-03): escenario 2 ejecutado de punta a punta con Mailpit (nivel b; ver T030); escenario 1 (mensaje publicado a mano) no ejecutado**
 
 ## Phase 4: US2 - Reentregas y mensajes que no corresponden (P1)
 
@@ -72,10 +72,10 @@
 
 **Meta**: completar la verificación de la 007 hasta capturar el correo en Mailpit y guardar Notificado con su historial (research D-08; constitución §11 v3.4.0; no es requisito del README).
 
-- [ ] T027 Añadir a `compose.yaml` el servicio `mailpit` (`image: axllent/mailpit:v1.31.6`, `ports: ["8025:8025"]` para la interfaz web, SMTP 1025 solo en la red interna, sin volumen, `restart: "no"`) y en `ms-notificaciones` `depends_on: mailpit: condition: service_started`; nada más cambia; `docker compose config -q`
-- [ ] T028 [P] En `.env.example`, documentar como **ejemplo local** (comentado y señalado como tal) `SMTP_HOST=mailpit`, `SMTP_PUERTO=1025`, `SMTP_SEGURIDAD=None`, `SMTP_REMITENTE=notificaciones@carga-masiva.test`, sin usuario ni clave, aclarando que sin TLS ni autenticación solo es para pruebas locales y que un servidor real se configura con las mismas variables
-- [ ] T029 [P] En `.env` (no versionado), añadir solo `SMTP_HOST=mailpit`, `SMTP_PUERTO=1025`, `SMTP_SEGURIDAD=None`, `SMTP_USUARIO=`, `SMTP_CLAVE=`, `SMTP_REMITENTE=notificaciones@carga-masiva.test`, conservando el resto del archivo; sin imprimir secretos
-- [ ] T030 Verificar el flujo con SMTP local real (nivel b): arrancar Compose; con una carga Finalizado en la base temporal (o una subida real con Control), comprobar que Mailpit captura **un** correo de `notificaciones@carga-masiva.test` a `usuario`, asunto `Carga {idCarga} finalizada` y el cuerpo del contrato (API `/api/v1/messages` o interfaz en `http://localhost:8025`), y que la carga queda Notificado con una entrada de historial Notificado; registrar en `quickstart.md` como nivel (b), sin declarar entrega externa
+- [x] T027 Añadir a `compose.yaml` el servicio `mailpit` (`image: axllent/mailpit:v1.31.6`, `ports: ["8025:8025"]` para la interfaz web, SMTP 1025 solo en la red interna, sin volumen, `restart: "no"`) y en `ms-notificaciones` `depends_on: mailpit: condition: service_started`; nada más cambia; `docker compose config -q`
+- [x] T028 [P] En `.env.example`, documentar como **ejemplo local** (comentado y señalado como tal) `SMTP_HOST=mailpit`, `SMTP_PUERTO=1025`, `SMTP_SEGURIDAD=None`, `SMTP_REMITENTE=notificaciones@carga-masiva.test`, sin usuario ni clave, aclarando que sin TLS ni autenticación solo es para pruebas locales y que un servidor real se configura con las mismas variables
+- [x] T029 [P] En `.env` (no versionado), añadir solo `SMTP_HOST=mailpit`, `SMTP_PUERTO=1025`, `SMTP_SEGURIDAD=None`, `SMTP_USUARIO=`, `SMTP_CLAVE=`, `SMTP_REMITENTE=notificaciones@carga-masiva.test`, conservando el resto del archivo; sin imprimir secretos
+- [x] T030 Verificar el flujo con SMTP local real (nivel b): arrancar Compose; con una carga Finalizado en la base temporal (o una subida real con Control), comprobar que Mailpit captura **un** correo de `notificaciones@carga-masiva.test` a `usuario`, asunto `Carga {idCarga} finalizada` y el cuerpo del contrato (API `/api/v1/messages` o interfaz en `http://localhost:8025`), y que la carga queda Notificado con una entrada de historial Notificado; registrar en `quickstart.md` como nivel (b), sin declarar entrega externa — **Ejecutada (2026-11-03): ver "Resultados", nivel (b)**
 
 ## Dependencias y orden
 

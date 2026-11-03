@@ -156,6 +156,8 @@ services:
         condition: service_completed_successfully
       rabbitmq:
         condition: service_healthy
+      mailpit:
+        condition: service_started
     environment:
       ASPNETCORE_ENVIRONMENT: Production
       ConnectionStrings__Default: "Server=sqlserver,1433;Database=${DB_NAME:-CargaMasivaApp};User Id=sa;Password=${MSSQL_SA_PASSWORD:?Defina MSSQL_SA_PASSWORD};Encrypt=True;TrustServerCertificate=True"
@@ -174,6 +176,15 @@ services:
     volumes:
       - logs-notificaciones:/app/logs
     healthcheck: *app-healthcheck
+    restart: "no"
+
+  # SMTP local de pruebas y demostración (constitución §11 v3.4.0; decisión del usuario, no del README): captura los
+  # correos y los muestra en http://localhost:8025, sin entregarlos a buzones externos. SMTP en mailpit:1025 solo en la
+  # red interna. Otro servidor SMTP se configura con las variables SMTP_* de .env, sin cambiar código.
+  mailpit:
+    image: axllent/mailpit:v1.31.6
+    ports:
+      - "8025:8025"
     restart: "no"
 
 volumes:

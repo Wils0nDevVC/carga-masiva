@@ -37,17 +37,25 @@ Eliminar la base temporal; borrar los correos de prueba de Mailpit; purgar la co
 
 ## Resultados (implementación, 2026-11-03)
 
-**Estado: implementada, NO completamente verificada.** Mailpit aprobado (2026-11-03) como SMTP local; su integración (T027–T029) y la verificación (T016–T025, T030) están pendientes.
+**Estado: implementada; flujo principal verificado con SMTP local real (Mailpit); NO completamente verificada**: siguen sin ejecutar las pruebas con sustitutos de reentregas, fallos y Notificado no guardado (escenarios 1 y 3 a 10). La entrega a buzones externos queda fuera de la feature.
 
 | Tipo de comprobación | Estado | Detalle |
 |---|---|---|
 | Compilación | **Hecha** | `dotnet build ms-notificaciones/src/Acity.Notificaciones.slnx`: 0 advertencias, 0 errores |
 | Configuración y arranque | **Hecha** (con los valores SMTP de prueba ya retirados) | `docker compose config -q` correcto; ms-notificaciones arrancó `healthy` y registró "Consumiendo la cola notificaciones". Sin `SMTP_HOST` ni `SMTP_REMITENTE` en `.env`, Compose no arranca (comportamiento previsto) |
 | Mapeo de `CargaArchivo` (T006) | **Hecha** | Reutilizado de ms-control y verificado contra el catálogo actual de `CargaMasivaApp`: `Id` bigint NOT NULL PK, `Estado` varchar(20) NOT NULL; 0 diferencias |
-| (a) Pruebas con sustitutos (mensajes a mano, cargas por SQL, fallos simulados) | **No ejecutadas** | Escenarios 3 a 10 sin ejecutar |
-| (b) SMTP local real (MailKit → Mailpit, Notificado e historial) | **No ejecutado** | Escenarios 1 y 2 y T030, tras integrar Mailpit (T027–T029) |
+| (a) Pruebas con sustitutos (mensajes a mano, cargas por SQL, fallos simulados) | **No ejecutadas** | Escenarios 1 y 3 a 10 sin ejecutar |
+| (b) SMTP local real (MailKit → Mailpit, Notificado e historial) | **Ejecutado** (escenario 2, T030) | Ver "Mailpit (T027 a T030)" |
 | (c) Entrega a buzones externos | **Fuera de alcance** | Mailpit no entrega a buzones externos; no se verifica en esta feature |
 
 - **Implementado**: paquetes (MailKit 4.18.2, RabbitMQ.Client 7.2.2, Polly.Core 8.9.0, Logging.Abstractions 10.0.14, `FrameworkReference`), `CargaArchivo` (`Id`, `Estado`), pipelines `smtp` y `sql` (reintento → circuito propio → tiempo de espera; sin reintentar circuito abierto), procedimiento con `@EstadoEsperado = 'Finalizado'`, consulta de estado, `ErrorNotificacion` sin reintentos, envío con MailKit (texto plano, un destinatario), consumidor con confirmación manual y espera tras fallo, Compose y `.env.example` (variables documentadas con ejemplos identificados como tales).
 - **Entorno**: los valores SMTP de prueba que se habían añadido a `.env` sin autorización se retiraron; no se añadió ningún servidor SMTP.
 - Ningún resultado de los escenarios 1 a 10 se declara.
+
+### Mailpit (T027 a T030), 2026-11-03
+
+- **T027–T029**: servicio `mailpit` (`axllent/mailpit:v1.31.6`, interfaz `8025:8025`, SMTP 1025 solo en la red interna, sin volumen) y `depends_on` de ms-notificaciones en `compose.yaml`; ejemplo local comentado en `.env.example`; en `.env` (no versionado, ignorado por git) solo `SMTP_HOST=mailpit`, `SMTP_PUERTO=1025`, `SMTP_SEGURIDAD=None`, `SMTP_USUARIO=`, `SMTP_CLAVE=`, `SMTP_REMITENTE=notificaciones@carga-masiva.test`; resto de `.env` sin cambios. `docker compose config -q` correcto.
+- **T030 / escenario 2, nivel (b) SMTP local real**: **Ejecutado** sobre la base temporal `CargaMasivaApp_F007` (V001–V004; un usuario de prueba). Excel de ejemplo subido con Control (token de Operador) → 202 `idCarga` 1 → ms-carga-masiva → ms-notificaciones → Mailpit. Resultado: carga **Notificado**, historial `Pendiente, En proceso, Cargado, Finalizado, Notificado`, 0 `ErrorNotificacion`; Mailpit (API `/api/v1/messages` y `/api/v1/message/{id}`) capturó **1** correo de `notificaciones@carga-masiva.test` a `operador.prueba@local`, asunto `Carga 1 finalizada`, cuerpo en texto plano `La carga 1 finalizó.` / `Fecha de fin (UTC): 2026-11-03 16:38:31` (igual a `FechaFin`), sin HTML ni adjuntos. Logs de ms-notificaciones: "Carga 1 notificada"; 0 coincidencias de `RABBITMQ_PASSWORD`, `MSSQL_SA_PASSWORD` y `Password=`.
+- **Abierto 2 (parcial)**: la API de Mailpit para leer correos funciona en v1.31.6; la función Chaos no se probó.
+- **Cierre**: correos de prueba borrados en Mailpit, colas purgadas, `/cargas/` borrado, `CargaMasivaApp_F007` eliminada; arranque normal sobre `CargaMasivaApp`, todos los servicios `healthy` (Mailpit incluido).
+- **No ejecutado**: escenario 1 (mensaje a mano) y escenarios 3 a 10 (nivel a); entrega externa (nivel c, fuera de alcance).
