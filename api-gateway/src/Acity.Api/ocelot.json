@@ -46,6 +46,63 @@
         }
       ],
       "DownstreamPathTemplate": "/auth/refresh"
+    },
+    {
+      "UpstreamPathTemplate": "/cargas",
+      "UpstreamHttpMethod": [
+        "Get"
+      ],
+      "DownstreamScheme": "http",
+      "DownstreamHostAndPorts": [
+        {
+          "Host": "ms-control",
+          "Port": 8080
+        }
+      ],
+      "DownstreamPathTemplate": "/cargas",
+      "AuthenticationOptions": {
+        "AuthenticationProviderKeys": [
+          "Bearer"
+        ]
+      }
+    },
+    {
+      "UpstreamPathTemplate": "/cargas/{id}",
+      "UpstreamHttpMethod": [
+        "Get"
+      ],
+      "DownstreamScheme": "http",
+      "DownstreamHostAndPorts": [
+        {
+          "Host": "ms-control",
+          "Port": 8080
+        }
+      ],
+      "DownstreamPathTemplate": "/cargas/{id}",
+      "AuthenticationOptions": {
+        "AuthenticationProviderKeys": [
+          "Bearer"
+        ]
+      }
+    },
+    {
+      "UpstreamPathTemplate": "/cargas/{id}/contenido",
+      "UpstreamHttpMethod": [
+        "Get"
+      ],
+      "DownstreamScheme": "http",
+      "DownstreamHostAndPorts": [
+        {
+          "Host": "ms-control",
+          "Port": 8080
+        }
+      ],
+      "DownstreamPathTemplate": "/cargas/{id}/contenido",
+      "AuthenticationOptions": {
+        "AuthenticationProviderKeys": [
+          "Bearer"
+        ]
+      }
     }
   ],
   "GlobalConfiguration": {

@@ -1,5 +1,6 @@
 using Acity.Application.Interfaces.Repositories;
 using Acity.Application.Interfaces.Services;
+using Acity.Infrastructure.Excel;
 using Acity.Infrastructure.Messaging;
 using Acity.Infrastructure.Persistence;
 using Acity.Infrastructure.Repositories;
@@ -42,6 +43,10 @@ public static class DependencyInjection
         services.AddHttpClient<IAlmacenamientoArchivos, SeaweedFsAlmacenamiento>();
         services.AddSingleton<IPublicadorCargas, RabbitMqPublicadorCargas>();
         services.AddScoped<IEstadoCargaService, EstadoCargaService>();
+
+        // Consultas de seguimiento (Feature 010): solo lectura.
+        services.AddScoped<ICargasConsulta, CargasConsulta>();
+        services.AddSingleton<ILectorContenidoExcel, LectorContenidoExcelClosedXml>();
 
         return services;
     }

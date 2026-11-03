@@ -1,9 +1,12 @@
+using System.Net;
 using System.Net.Http.Headers;
 using Acity.Application.Interfaces.Services;
 using Acity.Infrastructure.Resilience;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Options;
 using Polly;
+using Polly.CircuitBreaker;
+using Polly.Timeout;
 
 namespace Acity.Infrastructure.Storage;
 
@@ -31,6 +34,34 @@ public sealed class SeaweedFsAlmacenamiento(
             using var respuesta = await httpClient.PutAsync(destino, cuerpo, ct);
             respuesta.EnsureSuccessStatusCode();
         }, cancellationToken);
+    }
+
+    /// <summary>
+    /// GET al filer dentro del mismo pipeline (idempotente). 404 = archivo ausente, sin reintentos; un fallo final de
+    /// acceso (red, 5xx, tiempo de espera o circuito abierto) se traduce a almacenamiento no disponible.
+    /// </summary>
+    public async Task<byte[]> DescargarAsync(string rutaArchivo, CancellationToken cancellationToken)
+    {
+        var origen = ConstruirUri(rutaArchivo);
+        try
+        {
+            return await pipeline.ExecuteAsync(async ct =>
+            {
+                using var respuesta = await httpClient.GetAsync(origen, ct);
+                if (respuesta.StatusCode == HttpStatusCode.NotFound)
+                {
+                    throw new ArchivoNoEncontradoException(rutaArchivo);
+                }
+
+                respuesta.EnsureSuccessStatusCode();
+                return await respuesta.Content.ReadAsByteArrayAsync(ct);
+            }, cancellationToken);
+        }
+        catch (Exception ex) when (ex is HttpRequestException or TimeoutRejectedException or BrokenCircuitException
+                                       or TaskCanceledException && !cancellationToken.IsCancellationRequested)
+        {
+            throw new AlmacenamientoNoDisponibleException(ex);
+        }
     }
 
     private Uri ConstruirUri(string rutaArchivo)

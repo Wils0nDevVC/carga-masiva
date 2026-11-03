@@ -1,4 +1,4 @@
-﻿<Project Sdk="Microsoft.NET.Sdk">
+<Project Sdk="Microsoft.NET.Sdk">
 
   <ItemGroup>
     <ProjectReference Include="..\Acity.Application\Acity.Application.csproj" />
@@ -10,6 +10,8 @@
   </ItemGroup>
 
   <ItemGroup>
+    <!-- Lectura del Excel solo para la consulta de contenido (Feature 010, Q1 = B); biblioteca única de Excel (§12). -->
+    <PackageReference Include="ClosedXML" Version="0.105.1" />
     <PackageReference Include="Microsoft.EntityFrameworkCore.SqlServer" Version="10.0.14" />
     <PackageReference Include="Polly.Core" Version="8.9.0" />
     <PackageReference Include="RabbitMQ.Client" Version="7.2.2" />

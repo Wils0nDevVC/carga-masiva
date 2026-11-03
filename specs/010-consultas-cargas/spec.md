@@ -117,7 +117,7 @@ El usuario consulta una carga por su identificador para ver su estado, el histor
 2. **Given** una carga Pendiente sin periodos ni incidencias, **When** se consulta, **Then** los periodos y las incidencias aparecen como listas vacías y el historial contiene solo Pendiente.
 3. **Given** la carga de otro usuario, **When** un Operador consulta su detalle por identificador, **Then** recibe 404 «La carga no existe» con `data` null, la misma respuesta que para una carga inexistente, sin revelar que existe (Q2).
 4. **Given** cualquier carga, **When** el Administrador consulta su detalle, **Then** recibe 200.
-5. **Given** un identificador inexistente o no válido (no numérico o ≤ 0), **When** se consulta, **Then** recibe 404 «La carga no existe» o 400 respectivamente, con `Response<T>`.
+5. **Given** un identificador inexistente, **When** se consulta, **Then** recibe 404 «La carga no existe». Con un identificador ≤ 0 recibe 400 y con uno no numérico, 404 de ruta inexistente («No encontrado»). Todos con `Response<T>` (precisión del plan, research D-02).
 6. **Given** una carga Fallido o Finalizado con incidencias de notificación, **When** se consulta, **Then** el estado y las incidencias se muestran tal cual, sin recalcular ni alterar nada.
 
 ---
