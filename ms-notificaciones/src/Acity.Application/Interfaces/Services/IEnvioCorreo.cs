@@ -7,7 +7,7 @@ public interface IEnvioCorreo
     /// Completa si el servidor aceptó el correo. Lanza <see cref="EnvioCorreoFallidoException"/> si se agotaron los
     /// reintentos o el error es permanente, y <see cref="DependenciaNoDisponibleException"/> si el circuito está abierto.
     /// </summary>
-    Task EnviarAsync(string destinatario, string asunto, string cuerpo, CancellationToken cancellationToken);
+    Task EnviarAsync(string destinatario, string asunto, string texto, string html, CancellationToken cancellationToken);
 }
 
 /// <summary>Fallo definitivo del envío (reintentos agotados o error permanente): se registra ErrorNotificacion.</summary>

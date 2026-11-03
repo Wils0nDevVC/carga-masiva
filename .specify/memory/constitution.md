@@ -1,6 +1,17 @@
 <!--
 Sync Impact Report
-- Versión: 3.8.0 → 3.8.1 (PATCH: el usuario renombró el directorio contenedor del cliente web de
+- Versión: 3.8.1 → 3.9.0 (MINOR: el usuario reabre y autoriza cambiar la decisión Q1 de la Feature 007
+  sobre el contenido del correo, Feature 016, 2026-11-03.) Principios modificados: §8 (el correo
+  pasa de texto plano con idCarga y fechaFin a una plantilla sencilla con colores que incluye el
+  nombre del archivo, el resultado por periodo y las incidencias; el volumen de incidencias, el
+  formato y el enlace al detalle se fijan en la Feature 016). Se conservan: asunto, destinatario,
+  reintentos, ErrorNotificacion, descarte por estado, Notificado tras el envío, MailKit y SMTP por
+  entorno; "finalizada" sigue sin presentarse como "sin errores". Distinción: el README solo exige un
+  correo indicando que la carga finalizó; el contenido es decisión del usuario. Sin cambios de
+  esquema. Documentos afectados: specs/007-notificacion-correo (contenido del correo, sustituido por
+  la Feature 016) y specs/016-plantilla-correo. Resto sin cambios; la fecha de ratificación sigue
+  pendiente.
+- Historial 3.8.1 (referencia): Versión 3.8.0 → 3.8.1 (PATCH: el usuario renombró el directorio contenedor del cliente web de
   `frontend/` a `cargamasiva_front/`, 2026-11-03, y autorizó alinear la constitución y los documentos.)
   Principios modificados: §2 (nombre del directorio; la decisión Q3 de la Feature 011 se conserva en
   lo demás). Sin cambios de reglas. Documentos afectados: `specs/011-fundacion-frontend/` (rutas del
@@ -329,9 +340,14 @@ Sync Impact Report
   Feature 006]
 - Notificaciones envía el correo con MailKit y marca Notificado tras el envío exitoso.
   [README §2 y §3] [Decisión]
-- Contenido del correo [Decisión, Feature 007, 2026-11-03]: asunto "Carga {idCarga} finalizada" y
-  cuerpo en texto plano con idCarga y fechaFin, dirigido al usuario del mensaje; sin resúmenes,
-  consultas adicionales, adjuntos ni plantillas; "finalizada" no se presenta como "sin errores".
+- Contenido del correo [Decisión del usuario, Feature 016, 2026-11-03; sustituye la de la Feature
+  007]: asunto "Carga {idCarga} finalizada", dirigido al usuario del mensaje, con una plantilla
+  sencilla y amigable con colores que informa el nombre del archivo, idCarga, fechaFin, el resultado
+  por periodo y las incidencias. Solo lectura de los datos de la carga; sin adjuntos ni dependencias
+  nuevas. Incidencias: resumen por tipo con su recuento y detalle de las primeras 20, con aviso del
+  resto; formato HTML con estilos integrados y texto plano equivalente; enlace "Ver detalle" al
+  frontend si su URL está configurada por entorno (Feature 016, Q1–Q3). "Finalizada" no se presenta
+  como "sin errores".
 - Reintentos del correo [Decisión, Feature 007]: los reintentos limitados del envío satisfacen "la
   notificación se reintenta"; agotados, se registra ErrorNotificacion, la carga conserva Finalizado y
   el mensaje se confirma, sin recuperación automática posterior. Si la incidencia no puede
@@ -461,4 +477,4 @@ eliminaciones incompatibles; MINOR por principios o secciones nuevas; PATCH por 
 Toda especificación, plan y tarea MUST verificar cumplimiento de esta constitución, indicar la
 procedencia de cada obligación y justificar cualquier complejidad añadida.
 
-**Version**: 3.8.1 | **Ratified**: TODO(RATIFICATION_DATE): pendiente de aprobación del usuario | **Last Amended**: 2026-11-03
+**Version**: 3.9.0 | **Ratified**: TODO(RATIFICATION_DATE): pendiente de aprobación del usuario | **Last Amended**: 2026-11-03

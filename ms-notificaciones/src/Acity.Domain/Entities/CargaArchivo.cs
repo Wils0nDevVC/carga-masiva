@@ -9,4 +9,7 @@ public class CargaArchivo
     public long Id { get; set; }
 
     public string Estado { get; set; } = null!;
+
+    /// <summary>Nombre del Excel recibido, para el correo de notificación (Feature 016).</summary>
+    public string NombreArchivo { get; set; } = null!;
 }

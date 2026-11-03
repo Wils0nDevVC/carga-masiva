@@ -1,5 +1,5 @@
-using System.Globalization;
 using Acity.Application.Interfaces.Services;
+using Acity.Application.Notificaciones.Correo;
 using MediatR;
 using Microsoft.Extensions.Logging;
 
@@ -13,6 +13,7 @@ public sealed class NotificarCargaCommandHandler(
     ICargasConsulta cargas,
     IEnvioCorreo correo,
     IProcedimientosCarga procedimientos,
+    ConfiguracionCorreo configuracion,
     ILogger<NotificarCargaCommandHandler> logger) : IRequestHandler<NotificarCargaCommand, ResultadoNotificacion>
 {
     private const string Finalizado = "Finalizado";
@@ -27,13 +28,14 @@ public sealed class NotificarCargaCommandHandler(
             return ResultadoNotificacion.Descartada;
         }
 
-        // Contenido aprobado (Q1): sin resúmenes, adjuntos ni plantillas; "finalizada" no significa "sin errores".
-        var asunto = $"Carga {request.IdCarga} finalizada";
-        var cuerpo = $"La carga {request.IdCarga} finalizó.\nFecha de fin (UTC): {request.FechaFin.ToString("yyyy-MM-dd HH:mm:ss", CultureInfo.InvariantCulture)}";
+        // Contenido del correo (Feature 016, sustituye la Q1 de la 007): archivo, periodos e incidencias. Si la lectura
+        // falla, la excepción sube y el mensaje no se confirma, igual que al leer el estado.
+        var resumen = await cargas.ObtenerResumenAsync(request.IdCarga, CancellationToken.None);
+        var mensaje = PlantillaCorreo.Construir(request.IdCarga, request.FechaFin, resumen, configuracion.UrlFrontend);
 
         try
         {
-            await correo.EnviarAsync(request.Usuario, asunto, cuerpo, CancellationToken.None);
+            await correo.EnviarAsync(request.Usuario, mensaje.Asunto, mensaje.Texto, mensaje.Html, CancellationToken.None);
         }
         catch (EnvioCorreoFallidoException ex)
         {

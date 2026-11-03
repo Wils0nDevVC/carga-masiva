@@ -220,6 +220,8 @@ services:
       Smtp__Usuario: ${SMTP_USUARIO:-}
       Smtp__Clave: ${SMTP_CLAVE:-}
       Smtp__Remitente: ${SMTP_REMITENTE:?Defina SMTP_REMITENTE en .env (ver .env.example)}
+      # Enlace "Ver detalle" del correo (Feature 016); vacío = sin enlace.
+      Notificaciones__UrlFrontend: ${FRONTEND_URL:-http://localhost:3000}
     ports:
       - "8084:8080"
     volumes:

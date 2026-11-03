@@ -12,6 +12,7 @@ public class CargaArchivoConfiguration : IEntityTypeConfiguration<CargaArchivo>
         builder.ToTable("CargaArchivo");
         builder.HasKey(e => e.Id);
 
+        builder.Property(e => e.NombreArchivo).HasMaxLength(260);
         builder.Property(e => e.Estado)
             .HasMaxLength(20)
             .IsUnicode(false);

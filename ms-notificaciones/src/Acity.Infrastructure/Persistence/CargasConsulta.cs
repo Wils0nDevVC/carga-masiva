@@ -1,4 +1,5 @@
 using Acity.Application.Interfaces.Services;
+using Acity.Application.Notificaciones.Correo;
 using Acity.Domain.Entities;
 using Acity.Infrastructure.Resilience;
 using Microsoft.EntityFrameworkCore;
@@ -20,6 +21,39 @@ public sealed class CargasConsulta(
                 .Where(c => c.Id == idCarga)
                 .Select(c => c.Estado)
                 .FirstOrDefaultAsync(ct), cancellationToken);
+
+    /// <summary>Máximo de incidencias detalladas en el correo (Feature 016, Q1).</summary>
+    private const int MaximoIncidenciasDetalle = 20;
+
+    public async Task<ResumenCarga> ObtenerResumenAsync(long idCarga, CancellationToken cancellationToken)
+        => await pipeline.EjecutarAsync(PipelinesResiliencia.Sql, async ct =>
+        {
+            var nombre = await context.Set<CargaArchivo>().AsNoTracking()
+                .Where(c => c.Id == idCarga)
+                .Select(c => c.NombreArchivo)
+                .FirstOrDefaultAsync(ct) ?? string.Empty;
+            var periodos = await context.Set<CargaPeriodo>().AsNoTracking()
+                .Where(p => p.CargaId == idCarga)
+                .OrderBy(p => p.Periodo)
+                .Select(p => new PeriodoResumen(p.Periodo, p.Resultado))
+                .ToListAsync(ct);
+            var incidencias = context.Set<Incidencia>().AsNoTracking().Where(i => i.CargaId == idCarga);
+            var porTipo = await incidencias
+                .GroupBy(i => i.Tipo)
+                .Select(g => new TipoRecuento(g.Key, g.Count()))
+                .ToListAsync(ct);
+            var primeras = await incidencias
+                .OrderBy(i => i.Id)
+                .Take(MaximoIncidenciasDetalle)
+                .Select(i => new IncidenciaResumen(i.Tipo, i.NumeroFila, i.CodigoProducto, i.PeriodoTexto, i.Motivo))
+                .ToListAsync(ct);
+            return new ResumenCarga(
+                nombre,
+                periodos,
+                porTipo.Sum(t => t.Cantidad),
+                porTipo.OrderByDescending(t => t.Cantidad).ThenBy(t => t.Tipo).ToList(),
+                primeras);
+        }, cancellationToken);
 
     public async Task RegistrarErrorNotificacionAsync(long idCarga, string motivo, CancellationToken cancellationToken)
     {

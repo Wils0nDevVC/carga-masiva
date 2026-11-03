@@ -9,7 +9,7 @@ using Polly;
 namespace Acity.Infrastructure.Mail;
 
 /// <summary>
-/// Envía el correo con MailKit (constitución §8): un SmtpClient por envío, texto plano UTF-8, un solo destinatario.
+/// Envía el correo con MailKit (constitución §8): un SmtpClient por envío, HTML con texto plano equivalente, un solo destinatario.
 /// Reintentos agotados o error permanente → <see cref="EnvioCorreoFallidoException"/>; circuito abierto →
 /// <see cref="DependenciaNoDisponibleException"/>. No registra credenciales ni el servidor.
 /// </summary>
@@ -17,7 +17,7 @@ public sealed class EnvioCorreoMailKit(
     IOptions<SmtpOptions> options,
     [FromKeyedServices(PipelinesResiliencia.Smtp)] ResiliencePipeline pipeline) : IEnvioCorreo
 {
-    public async Task EnviarAsync(string destinatario, string asunto, string cuerpo, CancellationToken cancellationToken)
+    public async Task EnviarAsync(string destinatario, string asunto, string texto, string html, CancellationToken cancellationToken)
     {
         var o = options.Value;
         MimeMessage mensaje;
@@ -27,7 +27,8 @@ public sealed class EnvioCorreoMailKit(
             mensaje.From.Add(MailboxAddress.Parse(o.Remitente));
             mensaje.To.Add(MailboxAddress.Parse(destinatario));
             mensaje.Subject = asunto;
-            mensaje.Body = new TextPart("plain") { Text = cuerpo };
+            // multipart/alternative: texto plano y HTML equivalentes (Feature 016, Q2).
+            mensaje.Body = new BodyBuilder { TextBody = texto, HtmlBody = html }.ToMessageBody();
         }
         catch (ParseException ex)
         {
