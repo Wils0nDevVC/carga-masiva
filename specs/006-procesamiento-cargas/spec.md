@@ -235,9 +235,10 @@ Sin tablas ni columnas nuevas; solo se amplía el `CHECK` de `Incidencia.Tipo` c
 |---|---|---|
 | `usp_CambiarEstadoCarga` con `@EstadoEsperado='Pendiente'` no cambia una carga En proceso | **Realizada** en la 005 a nivel de procedimiento (base temporal) | `specs/005-…/quickstart.md`, escenario 2 |
 | Control deja Fallido con historial e incidencia si RabbitMQ no está disponible | **Realizada** en la 005 | escenario 16 |
-| Control responde 202 sin incidencia si la carga ya salió de Pendiente (`Cambiado = 0`) | **Pendiente** de punta a punta (solo revisión de código en la 005) | US5-1 de esta feature |
-| Un mensaje tardío no reactiva una carga Fallido | **Pendiente** (requiere consumidor) | US5-2 |
-| Carrera simultánea Control/consumidor sobre una carga Pendiente | **Pendiente** | US5-3 |
+| Control no sobrescribe una carga ya tomada (`usp_CambiarEstadoCarga` con origen esperado Pendiente sobre una carga En proceso real → `Cambiado = 0`, la carga termina Finalizado sin Fallido) | **Realizada en la 006** (2026-11-03) | `specs/006-…/quickstart.md`, escenario 21 |
+| El 202 de Control ante `Cambiado = 0` tras una publicación sin confirmación | **Pendiente** de punta a punta (requiere que el broker reciba sin confirmar); comprobado solo el procedimiento y el código | — |
+| Un mensaje tardío no reactiva una carga Fallido | **Realizada en la 006** | escenario 22 |
+| Carrera simultánea Control/consumidor sobre una carga Pendiente | **Realizada en la 006** (80 cargas; mezcla real 4/16 en la cuarta ronda; nunca ambos) | escenario 23 |
 | `nack`/`return` del intermediario en la publicación de Control | **Pendiente**, fuera del alcance de esta feature | — |
 
 Ningún resultado de esta tabla se declara antes de ejecutarlo.

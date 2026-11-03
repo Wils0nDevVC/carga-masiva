@@ -16,5 +16,9 @@ public class CargaArchivoConfiguration : IEntityTypeConfiguration<CargaArchivo>
         builder.Property(e => e.Estado)
             .HasMaxLength(20)
             .IsUnicode(false);
+
+        builder.HasOne<Usuario>().WithMany()
+            .HasForeignKey(e => e.UsuarioId)
+            .OnDelete(DeleteBehavior.ClientSetNull);
     }
 }

@@ -128,4 +128,4 @@ Los otros servicios, V001–V003, `api-gateway/`, `referencias/` y la constituci
 
 ## Pendientes tras el plan
 
-Ninguno que requiera decisión del usuario. Se comprueban en la implementación (research "Abiertos"): licencia de `SixLabors.Fonts` resuelta, `APPLOCK_MODE` sobre la conexión dedicada, 404 del filer, lectura de precios sin ruido, puntos de guardado de EF Core en el modo fila a fila y validación en el equipo de evaluación. Dependencia de la feature de Notificaciones: declarar la misma topología y descartar mensajes de cargas que no estén Finalizado.
+Ninguno que requiera decisión del usuario. Tras la implementación (research "Abiertos" y quickstart "Resultados"): resueltos los abiertos 1 a 5; desviaciones mínimas documentadas en `research.md`. **Sigue pendiente** la validación en el equipo de evaluación (motor amd64 emulado en este equipo). Parcial: el transitorio "reintento seguido de éxito" de la descarga no pudo provocarse de forma fiable (escenario 19). Dependencia de la feature de Notificaciones: declarar la misma topología de `notificaciones` y descartar mensajes de cargas que no estén Finalizado.

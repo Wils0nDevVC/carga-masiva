@@ -134,11 +134,18 @@ Ingeniería inversa de `dbo.Usuario` (procedimiento de F004, manual) e integraci
 
 `ms-carga-masiva`: `depends_on` añade `rabbitmq: service_healthy` y `seaweedfs: service_started`; variables `RabbitMq__Host/Puerto/Usuario/Clave`, `SeaweedFs__FilerUrl`; `Procesamiento__MaxIntentos` con valor predeterminado en `appsettings.json` (3). Sin servicios ni volúmenes nuevos. [Spec FR-025]
 
-## Abiertos (se comprueban en la implementación)
+## Abiertos (estado tras la implementación; detalle en `quickstart.md`, "Resultados")
 
-1. Versión resuelta de `SixLabors.Fonts` y su licencia (D-01).
-2. Comportamiento de `APPLOCK_MODE` sobre la conexión dedicada y detección de una conexión caída (D-03).
-3. Respuesta 404 del filer a un archivo inexistente (D-06).
-4. Lectura de precios del Excel de ejemplo sin ruido binario (D-07).
-5. Puntos de guardado de EF Core en el modo fila a fila y texto exacto del error de unicidad (D-11).
-6. Validación en el equipo de evaluación: no realizada (motor amd64 emulado).
+1. **Resuelto**: `SixLabors.Fonts` resuelto a 1.0.0, licencia Apache-2.0.
+2. **Resuelto**: `sp_getapplock` de sesión con espera 0 deja fuera a una segunda instancia; con la sesión del cerrojo terminada (`KILL`), `ComprobarVigenteAsync` lanza `CerrojoPerdidoException` antes del siguiente periodo y el consumidor se detiene sin confirmar.
+3. **Resuelto**: el filer responde 404 a un archivo inexistente.
+4. **Resuelto**: precios sin ruido (P0117 = 418.27; P0047 almacenado en el Excel como `75.51000000000001` → 75.51).
+5. **Resuelto**: EF Core usa puntos de guardado en el modo producto a producto; el error 2601 nombra `UX_Producto_CodigoProducto` (caso "ss"/"ß").
+6. **Pendiente**: validación en el equipo de evaluación no realizada (motor amd64 emulado).
+
+**Desviaciones de implementación** (mínimas, sin cambiar el diseño ni las reglas):
+- `IRepositorioProcesamiento` (Application) con implementación EF en Infrastructure: Application no referencia EF Core y necesita consultas asíncronas, el incremento de una sentencia (`UPDATE … OUTPUT`), la transacción por periodo y la detección de la colisión. En consecuencia se retiró `IUnitOfWork.ExecuteInTransactionAsync` (T011), que quedaba sin uso.
+- Precio en texto sin separador de miles (`NumberStyles` sin `AllowThousands`): "1,5" es no numérico, no 15.
+- `Cargado` → `Finalizado` y la notificación quedan fuera del tratamiento de fallo terminal: si falla un cambio de estado, la excepción sube sin confirmar y la recuperación lo completa (constitución §8: Cargado no pasa a Fallido).
+- `ConsumidorRabbitMq` espera al mensaje en curso antes de volver cuando se cierra el canal o se detiene el host (evita que la recuperación se solape con una ejecución viva).
+- El pipeline de la transacción de un periodo no tiene circuit breaker: D-12 preveía compartir el circuito SQL, pero un pipeline de Polly no comparte estado con otro; se dejó con sus 3 reintentos limitados y sin circuito propio.

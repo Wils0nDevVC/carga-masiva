@@ -1,4 +1,5 @@
 using Acity.Application.Behaviors;
+using Acity.Application.Cargas.Procesamiento;
 using FluentValidation;
 using Microsoft.Extensions.DependencyInjection;
 
@@ -16,6 +17,7 @@ public static class DependencyInjection
             cfg.AddOpenBehavior(typeof(ValidationBehavior<,>));
         });
         services.AddValidatorsFromAssembly(assembly);
+        services.AddScoped<ProcesadorCarga>();
 
         return services;
     }

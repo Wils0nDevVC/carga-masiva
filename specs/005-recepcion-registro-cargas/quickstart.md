@@ -120,3 +120,7 @@ Guía de verificación manual (sin pruebas automatizadas, constitución §11). D
 **No ejecutado**: escenario 18 de punta a punta (sin consumidor); `nack`/`return` del broker; errores SQL transitorios. **Validación en el equipo de evaluación**: no realizada.
 
 **Limitación vigente**: SQL Server amd64 corre emulado en Apple silicon, sin soporte oficial de Microsoft; resultados obtenidos **solo en este equipo**. Si `MSSQL_SA_PASSWORD` está exportada en el shell, Compose usa esa y no la de `.env`.
+
+### Verificado en la Feature 006 (2026-11-03)
+
+Con el consumidor real de ms-carga-masiva (ver `specs/006-procesamiento-cargas/quickstart.md`, escenarios 21 a 23): Control no sobrescribe una carga que el consumidor ya pasó a En proceso (`Cambiado = 0`; la carga termina Finalizado sin historial Fallido); un mensaje tardío de una carga que Control dejó Fallido se descarta sin cambios; en la carrera simultánea sobre 80 cargas cada una tuvo un único ganador (Fallido por Control sin procesamiento, o Finalizado por el consumidor sin Fallido). **Sigue sin ejecutarse** de punta a punta el 202 de Control ante `Cambiado = 0` tras una publicación sin confirmación.

@@ -128,9 +128,18 @@ services:
     depends_on:
       database-runner:
         condition: service_completed_successfully
+      rabbitmq:
+        condition: service_healthy
+      seaweedfs:
+        condition: service_started
     environment:
       ASPNETCORE_ENVIRONMENT: Production
       ConnectionStrings__Default: "Server=sqlserver,1433;Database=${DB_NAME:-CargaMasivaApp};User Id=sa;Password=${MSSQL_SA_PASSWORD:?Defina MSSQL_SA_PASSWORD};Encrypt=True;TrustServerCertificate=True"
+      RabbitMq__Host: rabbitmq
+      RabbitMq__Puerto: "5672"
+      RabbitMq__Usuario: ${RABBITMQ_USER:?Defina RABBITMQ_USER}
+      RabbitMq__Clave: ${RABBITMQ_PASSWORD:?Defina RABBITMQ_PASSWORD}
+      SeaweedFs__FilerUrl: http://seaweedfs:8888
     ports:
       - "8083:8080"
     volumes:
