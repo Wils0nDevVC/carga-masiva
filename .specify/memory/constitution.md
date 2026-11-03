@@ -1,6 +1,27 @@
 <!--
 Sync Impact Report
-- Versión: 3.5.0 → 3.6.0 (MINOR: fundación del frontend opcional por decisión del usuario,
+- Versión: 3.7.0 → 3.8.0 (MINOR: decisiones Q1–Q3 de la Feature 011 autorizadas por el usuario,
+  2026-11-03.) Principios modificados: §2 (nuevo directorio contenedor `frontend/` en la raíz para el
+  cliente web), §11 (tokens de sesión en `sessionStorage`, aceptando su exposición ante XSS, sin otros
+  mecanismos de almacenamiento; acceso al Gateway desde el mismo origen: el cliente reenvía `/auth` y
+  `/cargas` al Gateway, y Vite hace lo equivalente en desarrollo, conservando rutas, métodos y
+  contratos), Pendientes (se retiran el directorio y el acceso del navegador al Gateway). §9 no
+  cambia: el Gateway sigue mínimo y sin CORS. Distinción: ninguna de estas elecciones la exige el
+  README; son decisiones del usuario. Documentos afectados: `specs/011-fundacion-frontend/`
+  (spec y checklist); ninguno de las features 001–010; plantillas sin cambios. Resto sin cambios; la
+  fecha de ratificación sigue pendiente.
+- Historial 3.7.0 (referencia): Versión 3.6.0 → 3.7.0 (MINOR: precisiones de la fundación del frontend, Feature 011, decisión
+  del usuario 2026-11-03 con autorización expresa de enmienda.) Principios modificados: §11 (SPA;
+  React queda incluido; Tailwind CSS sin biblioteca adicional de componentes; organización en pages,
+  components, models, api, context, hooks y routes; models = contratos TypeScript de la API, no
+  copias de entidades; hooks por funcionalidad cuando coordinen estado, consultas o efectos, no uno
+  por endpoint; el cliente se integra en Compose con su Dockerfile), Pendientes (se retira el
+  despliegue del cliente; siguen pendientes su directorio contenedor y el acceso del navegador al
+  Gateway, que se deciden en la Feature 011). Distinción: el README solo exige, como opcional, React
+  16+ con componentes; lo demás son decisiones del usuario. Sin cambios en §2 ni §9. Documentos
+  afectados: ninguno de las features 001–010; plantillas sin cambios. Resto sin cambios; la fecha de
+  ratificación sigue pendiente.
+- Historial 3.6.0 (referencia): Versión 3.5.0 → 3.6.0 (MINOR: fundación del frontend opcional por decisión del usuario,
   2026-11-03, con autorización expresa de enmienda.) Principios modificados: §11 (el cliente web
   React del README, opcional, se implementa con React, TypeScript y Vite; React Router, Axios con
   interceptores y Tailwind CSS; responsabilidades en pages, components, models, api, hooks y
@@ -119,7 +140,8 @@ Sync Impact Report
 - Directorios contenedores en la raíz: `api-gateway/` (API Gateway con Ocelot), `database/`
   (scripts SQL versionados y runner de evolución del esquema; componente activo), `ms-autenticacion/` (autenticación y emisión de JWT),
   `ms-control/` (recepción de archivos y seguimiento de cargas), `ms-carga-masiva/`
-  (procesamiento masivo del Excel) y `ms-notificaciones/` (envío de correos). [Decisión]
+  (procesamiento masivo del Excel), `ms-notificaciones/` (envío de correos) y `frontend/` (cliente
+  web React; decisión del usuario, Feature 011). [Decisión]
 - Estos nombres identifican los directorios contenedores; los proyectos internos mantienen los
   nombres del principio 4. Las capas se crean solo cuando un plan lo requiera. [Decisión]
 - La base de datos participa en el mismo SDD y se modela inicialmente de forma integral.
@@ -386,18 +408,25 @@ Sync Impact Report
 - Postman se conserva como cliente y entregable: colecciones con cada petición. [README §2]
   [Decisión]
 - Cliente web: el README lo deja como opcional valorado (React 16+, uso de componentes). [README
-  §2, §4 Frontend] Por decisión del usuario (no es exigencia del README) se implementa con React,
-  TypeScript y Vite; React Router para la navegación, Axios para HTTP y sus interceptores, y
-  Tailwind CSS para los estilos. [Decisión del usuario]
-- Responsabilidades separadas en pages, components, models, api, hooks y un contexto de
-  autenticación. Los models representan los contratos de la API; los hooks se crean por
-  funcionalidad cuando sean necesarios. No se crean carpetas ni capas vacías. [Decisión del
-  usuario]
+  §2, §4 Frontend] Por decisión del usuario (no es exigencia del README) React queda incluido: una
+  SPA con React, TypeScript y Vite; React Router para la navegación, Axios para HTTP y sus
+  interceptores, y Tailwind CSS para los estilos, sin biblioteca adicional de componentes. Se
+  integra en el Compose de la raíz con su propio Dockerfile, como los demás ejecutables. [Decisión
+  del usuario]
+- Responsabilidades separadas en pages, components, models, api, context, hooks y routes. Los
+  models son contratos TypeScript de la API, no copias de entidades de la base. Los hooks se crean
+  por funcionalidad cuando coordinen estado, consultas o efectos, no uno por endpoint. No se crean
+  carpetas, capas ni archivos vacíos. [Decisión del usuario]
 - El cliente web consume únicamente el Gateway, nunca los microservicios directamente. La gestión
   de sesión y la renovación del token respetan el contrato aprobado de Autenticación (token de
   acceso, refresh token con rotación, 401 genérico) y los errores siguen `Response<T>`. Sin
   dependencias, patrones ni funcionalidades adicionales a las autorizadas. [Decisión del usuario]
   [§5] [§9]
+- Los tokens de sesión del cliente web se guardan en `sessionStorage`, aceptando su exposición ante
+  XSS; no se añaden otros mecanismos de almacenamiento. [Decisión del usuario, Feature 011 Q1]
+- El cliente web accede al Gateway desde el mismo origen: el servicio del cliente reenvía `/auth` y
+  `/cargas` al Gateway, y el servidor de desarrollo de Vite hace lo equivalente. Se conservan rutas,
+  métodos y contratos; el Gateway no añade CORS (§9). [Decisión del usuario, Feature 011 Q2]
 - Por decisión del usuario NO se crean proyectos ni suites de tests automatizados; esto no elimina
   la revisión documental ni la comprobación manual del flujo funcional. [Decisión]
 
@@ -416,10 +445,7 @@ Permanecen pendientes (no decididos): rotación y retención de logs; parámetro
 Polly (se fijan en las features de Control, Carga Masiva y Notificaciones); verificación
 operativa de Docker y SQL Server en el equipo de ejecución; la adaptación y validación del
 runner de `database/` y la limpieza de ms-control (migraciones EF Core, modelo completo y
-arranque con migraciones) quedan pendientes de una nueva feature. Del cliente web: su directorio
-contenedor en el monorepo (§2 enumera los directorios de la raíz y no lo incluye), su despliegue
-(Dockerfile y servicio en Compose, §11) y el acceso del navegador al Gateway desde otro origen
-(CORS u origen común; §9 define un Gateway mínimo).
+arranque con migraciones) quedan pendientes de una nueva feature.
 No se adoptan las convenciones de idioma, commits ni versionado de endpoints del ejemplo Bistro.
 
 ## Governance
@@ -429,4 +455,4 @@ eliminaciones incompatibles; MINOR por principios o secciones nuevas; PATCH por 
 Toda especificación, plan y tarea MUST verificar cumplimiento de esta constitución, indicar la
 procedencia de cada obligación y justificar cualquier complejidad añadida.
 
-**Version**: 3.6.0 | **Ratified**: TODO(RATIFICATION_DATE): pendiente de aprobación del usuario | **Last Amended**: 2026-11-03
+**Version**: 3.8.0 | **Ratified**: TODO(RATIFICATION_DATE): pendiente de aprobación del usuario | **Last Amended**: 2026-11-03
